@@ -1,24 +1,43 @@
 """
 MediBot Full-Page Chat Interface
-ChatGPT-style layout with sidebar history
-Bilingual support (English + Roman Urdu)
-SHAP Explainability for all 4 diseases
+ChatGPT-style layout with persistent sidebar history (SQLite)
+English only
 """
 
 import streamlit as st
 from datetime import datetime
-import uuid
-import os
-import pandas as pd
 from chatbot import HealthChatbot
+import chat_history_db as chat_db
+
+
+def _get_current_user_email():
+    """Get current user's email from session state"""
+    user = st.session_state.get('user', {})
+    return user.get('email', 'guest@medifederate')
 
 
 def init_chat_state():
-    """Initialize chat sessions"""
+    """Initialize chat session state (loads from DB)"""
+    user_email = _get_current_user_email()
+    
     if 'chat_sessions' not in st.session_state:
-        st.session_state.chat_sessions = {}
-    if 'current_chat_id' not in st.session_state:
-        _create_new_chat()
+        chats = chat_db.get_user_chats(user_email)
+        st.session_state.chat_sessions = {
+            c['id']: {
+                'title': c['title'],
+                'created_at': c['created_at'],
+                'messages': chat_db.get_chat_messages(c['id'])
+            }
+            for c in chats
+        }
+    
+    if 'current_chat_id' not in st.session_state or \
+       st.session_state.current_chat_id not in st.session_state.chat_sessions:
+        if st.session_state.chat_sessions:
+            st.session_state.current_chat_id = list(st.session_state.chat_sessions.keys())[0]
+        else:
+            _create_new_chat()
+    
     if 'chatbot_instance' not in st.session_state:
         st.session_state.chatbot_instance = HealthChatbot()
     if 'pending_chat_query' not in st.session_state:
@@ -26,25 +45,31 @@ def init_chat_state():
 
 
 def _create_new_chat():
-    """Create a new chat session"""
-    new_id = str(uuid.uuid4())[:8]
-    st.session_state.chat_sessions[new_id] = {
+    """Create a new chat session (saves to DB)"""
+    user_email = _get_current_user_email()
+    chat_id = chat_db.create_chat(user_email, "New Chat")
+    
+    st.session_state.chat_sessions[chat_id] = {
         'title': 'New Chat',
-        'created_at': datetime.now().strftime('%b %d, %H:%M'),
+        'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         'messages': []
     }
-    st.session_state.current_chat_id = new_id
+    st.session_state.current_chat_id = chat_id
+    return chat_id
 
 
 def _delete_chat(chat_id):
-    """Delete a chat session"""
+    """Delete a chat session (from DB and state)"""
+    chat_db.delete_chat(chat_id)
+    
     if chat_id in st.session_state.chat_sessions:
         del st.session_state.chat_sessions[chat_id]
-        if st.session_state.current_chat_id == chat_id:
-            if st.session_state.chat_sessions:
-                st.session_state.current_chat_id = list(st.session_state.chat_sessions.keys())[-1]
-            else:
-                _create_new_chat()
+    
+    if st.session_state.current_chat_id == chat_id:
+        if st.session_state.chat_sessions:
+            st.session_state.current_chat_id = list(st.session_state.chat_sessions.keys())[0]
+        else:
+            _create_new_chat()
 
 
 def inject_chat_page_css():
@@ -55,6 +80,13 @@ def inject_chat_page_css():
         footer {visibility: hidden;}
         header {visibility: hidden;}
         
+        section[data-testid="stSidebar"] {
+            display: block !important;
+            visibility: visible !important;
+            background: linear-gradient(180deg, #0f0f1a 0%, #1a1a2e 100%) !important;
+            min-width: 300px !important;
+        }
+        
         .main .block-container {
             padding-top: 4rem;
             padding-bottom: 6rem;
@@ -62,7 +94,6 @@ def inject_chat_page_css():
             margin: 0 auto;
         }
         
-        /* HIDE AVATARS */
         [data-testid="stChatMessageAvatarUser"],
         [data-testid="stChatMessageAvatarAssistant"] {
             display: none !important;
@@ -83,10 +114,6 @@ def inject_chat_page_css():
         
         [data-testid="stChatMessageContent"] {
             width: 100% !important;
-        }
-        
-        section[data-testid="stSidebar"] {
-            background: linear-gradient(180deg, #0f0f1a 0%, #1a1a2e 100%);
         }
         
         [data-testid="stChatInput"] {
@@ -130,7 +157,6 @@ def inject_chat_page_css():
             font-size: 0.9rem;
         }
         
-        /* FLOATING BACK BUTTON */
         .st-key-floating_back_btn {
             position: fixed !important;
             top: 15px !important;
@@ -153,22 +179,6 @@ def inject_chat_page_css():
             transform: translateY(-2px) !important;
             box-shadow: 0 6px 20px rgba(102, 126, 234, 0.7) !important;
         }
-        
-        /* SHAP Card styling */
-        .shap-card {
-            background: linear-gradient(135deg, #1e1e2e 0%, #2a2a3e 100%);
-            border: 1px solid rgba(102, 126, 234, 0.2);
-            border-radius: 12px;
-            padding: 16px 20px;
-            margin-bottom: 15px;
-        }
-        
-        .shap-card-title {
-            color: #ffffff;
-            font-weight: 700;
-            font-size: 1.05rem;
-            margin-bottom: 10px;
-        }
     </style>
     """, unsafe_allow_html=True)
 
@@ -178,12 +188,10 @@ def render_chat_page():
     init_chat_state()
     inject_chat_page_css()
     
-    # FLOATING BACK BUTTON
     if st.button("🏠 Back to Home", key="floating_back_btn"):
         st.session_state.show_chat_page = False
         st.rerun()
     
-    # SIDEBAR
     with st.sidebar:
         if st.button("🏠  Back to Home", use_container_width=True, type="primary", key="back_home_sidebar"):
             st.session_state.show_chat_page = False
@@ -205,8 +213,9 @@ def render_chat_page():
         
         st.markdown("---")
         st.markdown("##### 💬 Chat History")
+        st.caption(f"{chat_db.chat_count(_get_current_user_email())} chats saved")
         
-        chat_items = list(st.session_state.chat_sessions.items())[::-1]
+        chat_items = list(st.session_state.chat_sessions.items())
         
         for chat_id, chat_data in chat_items:
             is_active = chat_id == st.session_state.current_chat_id
@@ -235,34 +244,32 @@ def render_chat_page():
         st.markdown("---")
         
         if st.button("🗑️  Clear All Chats", use_container_width=True):
+            chat_db.clear_user_chats(_get_current_user_email())
             st.session_state.chat_sessions = {}
             _create_new_chat()
             st.rerun()
     
-    # MAIN CHAT
     current_chat = st.session_state.chat_sessions[st.session_state.current_chat_id]
     
     st.markdown(f"""
     <div class="chat-header">
         <div class="chat-title">🤖 MediBot</div>
-        <div class="chat-subtitle">{current_chat['created_at']} · English & Roman Urdu</div>
+        <div class="chat-subtitle">{current_chat['created_at'][:16]}</div>
     </div>
     """, unsafe_allow_html=True)
     
     st.markdown("---")
     
-    # Handle pending query
     if st.session_state.get('pending_chat_query'):
         query = st.session_state.pending_chat_query
         st.session_state.pending_chat_query = None
         _handle_message(query)
     
-    # WELCOME SCREEN
     if not current_chat['messages']:
         st.markdown("""
         <div style="text-align: center; padding: 20px 0;">
             <h2 style="color: #ffffff;">How can I help you today?</h2>
-            <p style="color: #808090;">Ask in English or Roman Urdu</p>
+            <p style="color: #808090;">Ask me anything about your health</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -271,14 +278,14 @@ def render_chat_page():
         
         col1, col2, col3 = st.columns(3)
         with col1:
-            if st.button("🌡️ I have fever", use_container_width=True):
-                _handle_message("I have fever")
+            if st.button("🌡️ I have a fever", use_container_width=True):
+                _handle_message("I have a fever")
         with col2:
-            if st.button("🤕 I have headache", use_container_width=True):
-                _handle_message("I have headache")
+            if st.button("🤕 I have a headache", use_container_width=True):
+                _handle_message("I have a headache")
         with col3:
-            if st.button("🤧 I have cold & cough", use_container_width=True):
-                _handle_message("I have cold and cough")
+            if st.button("🤧 I have a cold and cough", use_container_width=True):
+                _handle_message("I have a cold and cough")
         
         col4, col5, col6 = st.columns(3)
         with col4:
@@ -288,8 +295,8 @@ def render_chat_page():
             if st.button("💧 I have diarrhea", use_container_width=True):
                 _handle_message("I have diarrhea")
         with col6:
-            if st.button("🩹 I have allergy", use_container_width=True):
-                _handle_message("I have allergy")
+            if st.button("🩹 I have an allergy", use_container_width=True):
+                _handle_message("I have an allergy")
         
         st.markdown("---")
         st.markdown("**🩺 Chronic Conditions:**")
@@ -309,25 +316,16 @@ def render_chat_page():
                 _handle_message("Tell me about kidney disease")
         
         st.markdown("---")
-        st.markdown("**🇵🇰 Roman Urdu Suggestions:**")
+        st.markdown("**💊 Other Topics:**")
         
         col11, col12 = st.columns(2)
         with col11:
-            if st.button("🌡️ Mujhe bukhar hai", use_container_width=True):
-                _handle_message("Mujhe bukhar hai kya karoon?")
+            if st.button("⚖️ Calculate my BMI", use_container_width=True):
+                _handle_message("Calculate my BMI: 70 kg, 170 cm")
         with col12:
-            if st.button("🤕 Sar dard ho raha hai", use_container_width=True):
-                _handle_message("Sar dard ho raha hai kya karoon?")
-        
-        st.markdown("---")
-        st.markdown("""
-        <div style="text-align: center; color: #808090; font-size: 0.85rem; padding: 20px 0;">
-            <strong>Topics I can help with:</strong><br><br>
-            🌡️ Fever · 🤕 Headache · 🤧 Cold/Cough · 🤢 Stomach · 💧 Diarrhea · 🩹 Allergy · 🩸 Diabetes · ❤️ Heart · 🧠 Stroke · 🫘 Kidney · ⚖️ BMI · 💓 BP · 🍎 Diet · 🏃 Exercise · 🚨 Emergency
-        </div>
-        """, unsafe_allow_html=True)
+            if st.button("🚨 Emergency numbers", use_container_width=True):
+                _handle_message("What are the emergency numbers in Pakistan?")
     
-    # DISPLAY MESSAGES
     for msg in current_chat['messages']:
         if msg['role'] == 'user':
             with st.chat_message("user"):
@@ -336,33 +334,38 @@ def render_chat_page():
             with st.chat_message("assistant"):
                 st.markdown(msg['content'])
     
-    # CHAT INPUT
-    user_input = st.chat_input("Message MediBot... (English ya Roman Urdu mein)")
+    user_input = st.chat_input("Message MediBot...")
     
     if user_input:
         _handle_message(user_input)
 
 
 def _handle_message(user_input):
-    """Process user message"""
-    current_chat = st.session_state.chat_sessions[st.session_state.current_chat_id]
+    """Process user message (saves to DB)"""
+    chat_id = st.session_state.current_chat_id
+    current_chat = st.session_state.chat_sessions[chat_id]
     
     current_chat['messages'].append({
         'role': 'user',
         'content': user_input
     })
+    chat_db.add_message(chat_id, 'user', user_input)
     
     if len(current_chat['messages']) == 1:
         title = user_input[:35]
         if len(user_input) > 35:
             title += "..."
         current_chat['title'] = title
+        chat_db.update_chat_title(chat_id, title)
     
-    bot_response = st.session_state.chatbot_instance.get_response(user_input)
+    user_email = _get_current_user_email()
+    bot_response = st.session_state.chatbot_instance.get_response(user_input, user_email=user_email)
+    
     current_chat['messages'].append({
         'role': 'assistant',
         'content': bot_response
     })
+    chat_db.add_message(chat_id, 'assistant', bot_response)
     
     st.rerun()
 

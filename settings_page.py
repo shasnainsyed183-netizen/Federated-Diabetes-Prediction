@@ -166,8 +166,21 @@ def _render_profile_tab(current_user, is_patient, user_email):
         html += '<div class="info-row"><span class="info-label">Email</span><span class="info-value">' + user_email + '</span></div>'
         html += '<div class="info-row"><span class="info-label">Account Type</span><span class="info-value">Guest Access</span></div>'
         html += '</div>'
-        html += '<div class="warning-box"><strong>👤 Guest Mode:</strong> Aap guest ke tor par use kar rahe hain. Apna account banane ke liye logout karein aur "Register" tab se doctor account banayein.</div>'
+        html += '<div class="warning-box"><strong>👤 Guest Mode:</strong> You are currently using MediFederate as a guest. To create a permanent account, please logout and register as a doctor.</div>'
         st.markdown(html, unsafe_allow_html=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("---")
+    st.markdown("##### 🚪 Session")
+    st.caption("Click the button below to logout of your account")
+    
+    if st.button("🚪  Logout", use_container_width=True, key="settings_logout_btn"):
+        st.session_state.logged_in = False
+        st.session_state.user = None
+        st.session_state.show_chat_page = False
+        st.session_state.show_settings_page = False
+        st.session_state.welcome_toast_shown = False
+        st.rerun()
 
 
 def _render_security_tab(current_user, is_patient, user_email):
@@ -178,7 +191,7 @@ def _render_security_tab(current_user, is_patient, user_email):
     """, unsafe_allow_html=True)
     
     if is_patient:
-        st.info("👤 Guest users ka password nahi hota. Account banane ke liye logout karein.")
+        st.info("👤 Guest users do not have a password. Please logout to create an account.")
     else:
         with st.form("change_password_form"):
             current_password = st.text_input("Current Password", type="password", key="cp_current")
@@ -225,7 +238,7 @@ def _render_preferences_tab():
     """, unsafe_allow_html=True)
     
     theme = st.selectbox("Theme", ["Dark (Default)", "Light"], key="pref_theme")
-    language = st.selectbox("Preferred Language", ["English", "Roman Urdu", "Both"], index=2, key="pref_lang")
+    language = st.selectbox("Preferred Language", ["English"], index=0, key="pref_lang")
     
     st.markdown('</div>', unsafe_allow_html=True)
     
@@ -252,7 +265,7 @@ def _render_preferences_tab():
     st.markdown("""
     <div class="warning-box">
         <strong>🔒 Privacy Note:</strong> MediFederate uses Federated Learning 
-        and Differential Privacy. Patient data kabhi share nahi hota.
+        and Differential Privacy. Patient data is never shared.
     </div>
     """, unsafe_allow_html=True)
     
@@ -344,8 +357,8 @@ def _render_activity_tab(user_email):
     <div class="setting-section">
         <div class="setting-section-title">⚠️ Danger Zone</div>
         <div class="danger-box">
-            <strong>Delete Account:</strong> Aap apna account permanently delete kar sakte hain. 
-            Yeh action undo nahi ho sakta.
+            <strong>Delete Account:</strong> You can permanently delete your account. 
+            This action cannot be undone.
         </div>
     </div>
     """, unsafe_allow_html=True)

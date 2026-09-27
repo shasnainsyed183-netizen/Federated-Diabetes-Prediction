@@ -1,6 +1,6 @@
 """
 MediFederate Info Pages
-Email Support, Website — with detailed information
+Email Support, Website — with detailed information (English only)
 """
 
 import streamlit as st
@@ -28,7 +28,7 @@ def inject_info_css():
         }
         
         .info-hero {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #667eea, #764ba2);
             padding: 45px 40px;
             border-radius: 18px;
             color: white;
@@ -46,7 +46,7 @@ def inject_info_css():
             right: -10%;
             width: 400px;
             height: 400px;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(255,255,255,0.1), transparent);
             border-radius: 50%;
         }
         
@@ -55,7 +55,7 @@ def inject_info_css():
         .info-hero-subtitle { font-size: 1rem; opacity: 0.95; margin-top: 10px; position: relative; z-index: 2; }
         
         .info-card {
-            background: linear-gradient(135deg, #1e1e2e 0%, #2a2a3e 100%);
+            background: linear-gradient(135deg, #1e1e2e, #2a2a3e);
             border: 1px solid rgba(102, 126, 234, 0.2);
             border-radius: 14px;
             padding: 22px;
@@ -136,7 +136,7 @@ def inject_info_css():
         .feature-item-desc { color: #a0a0b0; font-size: 0.85rem; line-height: 1.6; }
         
         .team-card {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
             border: 1px solid rgba(102, 126, 234, 0.2);
             border-radius: 12px;
             padding: 20px;
@@ -162,7 +162,7 @@ def inject_info_css():
         }
         
         .stat-card {
-            background: linear-gradient(135deg, #1e1e2e 0%, #2a2a3e 100%);
+            background: linear-gradient(135deg, #1e1e2e, #2a2a3e);
             border: 1px solid rgba(102, 126, 234, 0.25);
             border-radius: 12px;
             padding: 20px;
@@ -179,7 +179,7 @@ def inject_info_css():
         .stat-value {
             font-size: 2rem;
             font-weight: 800;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #667eea, #764ba2);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -195,7 +195,7 @@ def inject_info_css():
         }
         
         .faq-item {
-            background: linear-gradient(135deg, #1e1e2e 0%, #2a2a3e 100%);
+            background: linear-gradient(135deg, #1e1e2e, #2a2a3e);
             border: 1px solid rgba(102, 126, 234, 0.2);
             border-radius: 12px;
             padding: 18px 22px;
@@ -312,7 +312,7 @@ def render_email_page():
                 <span style="color: #a0a0b0; font-size: 0.85rem;">
                 🕐 Response: Within 24 hours<br>
                 📅 Available: Monday to Sunday<br>
-                🌍 Languages: English, Urdu, Roman Urdu
+                🌍 Languages: English
                 </span>
             </div>
         </div>
@@ -439,27 +439,26 @@ def render_email_page():
     st.markdown("""
     <div class="faq-item">
         <div class="faq-q">Q: How do I reset my doctor account password?</div>
-        <div class="faq-a">Go to the login page → click "Forgot Password?" → enter your registered email → set a new password. If you still face issues, email tech@medifederate.com.</div>
+        <div class="faq-a">Go to the login page, click "Forgot Password?", enter your registered email, and set a new password. If you still face issues, email tech@medifederate.com.</div>
     </div>
     <div class="faq-item">
         <div class="faq-q">Q: Is patient data really private?</div>
-        <div class="faq-a">Yes! We use Federated Learning + Differential Privacy. Patient data never leaves your device. Only encrypted model weights are shared.</div>
+        <div class="faq-a">Yes. We use Federated Learning + Differential Privacy. Patient data never leaves your device. Only encrypted model weights are shared.</div>
     </div>
     <div class="faq-item">
         <div class="faq-q">Q: Can I use MediFederate without creating an account?</div>
-        <div class="faq-a">Absolutely! Click "Continue as Patient (Guest)" on the login page. No registration needed for patients.</div>
+        <div class="faq-a">Absolutely. Click "Continue as Patient (Guest)" on the login page. No registration is needed for patients.</div>
     </div>
     <div class="faq-item">
         <div class="faq-q">Q: How accurate are the AI predictions?</div>
-        <div class="faq-a">Model accuracies: Diabetes 62.38%, Heart 88.52%, Stroke 72.90%, Kidney 100%. Predictions are for informational purposes only — always consult a real doctor.</div>
+        <div class="faq-a">Model accuracies: Diabetes 62.38%, Heart 88.52%, Stroke 72.90%, Kidney 100%. Predictions are for informational purposes only. Always consult a real doctor.</div>
     </div>
     <div class="faq-item">
         <div class="faq-q">Q: How do I report a bug?</div>
-        <div class="faq-a">Email tech@medifederate.com with subject "Bug Report — [short description]", attach a screenshot, and mention steps to reproduce.</div>
+        <div class="faq-a">Email tech@medifederate.com with the subject "Bug Report — [short description]", attach a screenshot, and mention steps to reproduce.</div>
     </div>
     """, unsafe_allow_html=True)
     
-    # ===== EMERGENCY NOTICE =====
     st.markdown("<br>", unsafe_allow_html=True)
     st.error("🚨 **For medical emergencies, do NOT use email.** Call **1122** (Rescue) or **115** (Edhi Ambulance) immediately, or visit your nearest hospital.")
     
@@ -497,7 +496,7 @@ def render_website_page():
             <div class="info-card-title">Mission</div>
             <div class="info-card-desc">
                 To make healthcare AI accessible, secure, and privacy-respecting for patients 
-                and doctors across Pakistan — and eventually the world. We believe AI should 
+                and doctors across Pakistan, and eventually the world. We believe AI should 
                 never come at the cost of patient privacy.
             </div>
         </div>
@@ -576,7 +575,7 @@ def render_website_page():
     <div class="feature-item">
         <div class="feature-item-title">🛡️ Differential Privacy</div>
         <div class="feature-item-desc">
-            Gaussian noise (multiplier 0.01) added to weights with clipping. Formal (ε, δ) privacy guarantee.
+            Gaussian noise (multiplier 0.01) added to weights with clipping. Formal privacy guarantee.
         </div>
     </div>
     <div class="feature-item">
@@ -588,7 +587,7 @@ def render_website_page():
     <div class="feature-item">
         <div class="feature-item-title">💬 AI Health Chatbot (Groq)</div>
         <div class="feature-item-desc">
-            MediBot answers health questions in English + Roman Urdu, 24/7, with user-history awareness.
+            MediBot answers health questions in English, 24/7, with user-history awareness.
         </div>
     </div>
     <div class="feature-item">
@@ -751,7 +750,7 @@ def render_website_page():
     <div class="feature-item">
         <div class="feature-item-title">🔮 Phase 3 — Future</div>
         <div class="feature-item-desc">
-            Blockchain audit trail, Mobile app, Multi-language (Urdu script), Docker deployment
+            Blockchain audit trail, Mobile app, Multi-language support, Docker deployment
         </div>
     </div>
     """, unsafe_allow_html=True)

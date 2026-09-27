@@ -1,6 +1,7 @@
 """
 MediFederate Login Page
 Professional Split-Screen Design with Guest Mode & Forgot Password
+English only
 """
 
 import streamlit as st
@@ -29,7 +30,7 @@ def inject_login_css():
         }
         
         .left-panel-content {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #667eea, #764ba2);
             padding: 40px 35px;
             border-radius: 18px;
             color: white;
@@ -48,7 +49,7 @@ def inject_login_css():
             right: -30%;
             width: 500px;
             height: 500px;
-            background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(255,255,255,0.08), transparent);
             border-radius: 50%;
         }
         
@@ -80,7 +81,7 @@ def inject_login_css():
         .form-header-subtitle { color: #a0a0b0; font-size: 0.85rem; }
         
         .patient-mode-card {
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1));
             border: 1px solid rgba(16, 185, 129, 0.3);
             border-radius: 14px;
             padding: 18px;
@@ -92,7 +93,7 @@ def inject_login_css():
         .patient-mode-card p { color: #a0e0c0; font-size: 0.83rem; margin: 0 0 12px 0; line-height: 1.5; }
         
         .st-key-patient_mode_btn button {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+            background: linear-gradient(135deg, #10b981, #059669) !important;
             color: white !important;
             border: none !important;
             padding: 14px 24px !important;
@@ -155,7 +156,7 @@ def inject_login_css():
         }
         
         .stButton > button[kind="primary"] {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            background: linear-gradient(135deg, #667eea, #764ba2) !important;
             color: white !important;
             border: none !important;
             box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4) !important;
@@ -182,7 +183,7 @@ def inject_login_css():
         }
         
         .stTabs [aria-selected="true"] {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            background: linear-gradient(135deg, #667eea, #764ba2) !important;
             color: #ffffff !important;
             box-shadow: 0 4px 14px rgba(102, 126, 234, 0.35) !important;
             font-weight: 600 !important;

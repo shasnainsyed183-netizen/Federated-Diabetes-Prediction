@@ -187,11 +187,9 @@ st.markdown("""
         width: 52px !important;
         height: 52px !important;
         border-radius: 50% !important;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
         color: white !important;
         font-size: 22px !important;
         border: 2px solid rgba(255, 255, 255, 0.25) !important;
-        box-shadow: 0 4px 14px rgba(102, 126, 234, 0.5) !important;
         transition: all 0.3s ease !important;
         padding: 0 !important;
         cursor: pointer !important;
@@ -209,10 +207,10 @@ st.markdown("""
         box-shadow: 0 6px 20px rgba(102, 126, 234, 0.8) !important;
     }
     
-    .st-key-top_settings_btn button { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important; box-shadow: 0 4px 14px rgba(245, 158, 11, 0.5) !important; }
-    .st-key-top_chat_btn button { background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.5) !important; }
-    .st-key-top_email_btn button { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.5) !important; }
-    .st-key-top_web_btn button { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important; box-shadow: 0 4px 14px rgba(139, 92, 246, 0.5) !important; }
+    .st-key-top_settings_btn button { background: linear-gradient(135deg, #f59e0b, #d97706) !important; box-shadow: 0 4px 14px rgba(245, 158, 11, 0.5) !important; }
+    .st-key-top_chat_btn button { background: linear-gradient(135deg, #10b981, #059669) !important; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.5) !important; }
+    .st-key-top_email_btn button { background: linear-gradient(135deg, #3b82f6, #2563eb) !important; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.5) !important; }
+    .st-key-top_web_btn button { background: linear-gradient(135deg, #8b5cf6, #7c3aed) !important; box-shadow: 0 4px 14px rgba(139, 92, 246, 0.5) !important; }
     
     /* ===== MAIN AREA ===== */
     .main .block-container {
@@ -222,7 +220,7 @@ st.markdown("""
     }
     
     .hero-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #667eea, #764ba2);
         padding: 40px 40px;
         border-radius: 16px;
         color: white;
@@ -239,7 +237,7 @@ st.markdown("""
         right: -10%;
         width: 400px;
         height: 400px;
-        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        background: radial-gradient(circle, rgba(255,255,255,0.1), transparent);
         border-radius: 50%;
     }
     
@@ -275,7 +273,7 @@ st.markdown("""
     }
     
     .metric-card {
-        background: linear-gradient(135deg, #1e1e2e 0%, #2a2a3e 100%);
+        background: linear-gradient(135deg, #1e1e2e, #2a2a3e);
         border: 1px solid rgba(102, 126, 234, 0.2);
         border-radius: 12px;
         padding: 20px;
@@ -293,7 +291,7 @@ st.markdown("""
     .metric-value {
         font-size: 2.2rem;
         font-weight: 700;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #667eea, #764ba2);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -309,7 +307,7 @@ st.markdown("""
     }
     
     .feature-card {
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        background: linear-gradient(135deg, #1a1a2e, #16213e);
         border-left: 4px solid #667eea;
         border-radius: 10px;
         padding: 20px;
@@ -349,7 +347,7 @@ st.markdown("""
     .pill-danger { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
     
     .contact-card {
-        background: linear-gradient(135deg, #1e1e2e 0%, #2a2a3e 100%);
+        background: linear-gradient(135deg, #1e1e2e, #2a2a3e);
         border: 1px solid rgba(102, 126, 234, 0.2);
         border-radius: 12px;
         padding: 18px;
@@ -381,7 +379,7 @@ st.markdown("""
     }
     
     .gallery-card {
-        background: linear-gradient(135deg, #1e1e2e 0%, #2a2a3e 100%);
+        background: linear-gradient(135deg, #1e1e2e, #2a2a3e);
         border: 1px solid rgba(102, 126, 234, 0.2);
         border-radius: 14px;
         overflow: hidden;
@@ -441,7 +439,7 @@ st.markdown("""
     }
     
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        background: linear-gradient(135deg, #667eea, #764ba2) !important;
         color: #ffffff !important;
         box-shadow: 0 4px 14px rgba(102, 126, 234, 0.35) !important;
         font-weight: 600 !important;
@@ -466,7 +464,7 @@ st.markdown("""
     }
     
     .stButton > button[kind="primary"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        background: linear-gradient(135deg, #667eea, #764ba2) !important;
         border: none !important;
         color: white !important;
         padding: 12px 24px !important;
@@ -475,7 +473,7 @@ st.markdown("""
     }
     
     .stDownloadButton > button {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+        background: linear-gradient(135deg, #10b981, #059669) !important;
         color: white !important;
         border: none !important;
         border-radius: 10px !important;
@@ -511,24 +509,19 @@ is_patient = current_user.get('role') == 'patient'
 role_label = "Patient" if is_patient else "Doctor"
 user_email = current_user.get('email', 'guest@medifederate')
 
-# Avatar emoji
 avatar_emoji = "👤" if is_patient else "👨‍⚕️"
 
-# Settings button (top-right corner)
 if st.button(avatar_emoji, key="top_settings_btn", help="Settings & Account"):
     show_settings_dialog()
 
-# Chat button
 if st.button("💬", key="top_chat_btn", help="Open MediBot Chat"):
     st.session_state.show_chat_page = True
     st.rerun()
 
-# Email button
 if st.button("📧", key="top_email_btn", help="Email Support"):
     st.session_state.show_email_page = True
     st.rerun()
 
-# Website button
 if st.button("🌐", key="top_web_btn", help="Visit Website"):
     st.session_state.show_website_page = True
     st.rerun()
@@ -547,26 +540,6 @@ st.markdown(f"""
     </p>
 </div>
 """, unsafe_allow_html=True)
-
-
-# ========================================
-# TOP NAVIGATION BAR (Actions)
-# ========================================
-col_nav1, col_nav2, col_nav3 = st.columns([1, 1, 1])
-
-with col_nav1:
-    if st.button("🚪  Logout", use_container_width=True, key="top_logout_btn"):
-        logout()
-
-with col_nav2:
-    if st.button(f"👤  {current_user['full_name']}" if not is_patient else "👤  Patient Mode", 
-                 use_container_width=True, key="top_user_info"):
-        show_settings_dialog()
-
-with col_nav3:
-    if st.button("💬  Open MediBot Chat", use_container_width=True, type="primary", key="top_chat_full_btn"):
-        st.session_state.show_chat_page = True
-        st.rerun()
 
 
 # ========================================
@@ -1091,6 +1064,9 @@ with tab6:
                     st.session_state.show_chat_page = True
                     st.session_state.pending_chat_query = item['query']
                     st.rerun()
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.info("💡 **Tip:** Click the 'Ask MediBot' button under any card, and the AI will instantly answer questions about that topic!")
 
 
 # ========================================
@@ -1237,7 +1213,7 @@ if tab8 is not None:
         st.markdown(f"""
         Showing predictions for: **{current_user['full_name']}** ({current_user['email']})
         
-        *Yeh aapki apni predictions hain — baaki doctors ki history aapko nazar nahi aayegi.*
+        *These are your own predictions. Other doctors' history is private and not visible to you.*
         """)
         
         stats = hist.get_statistics(user_email=user_email)
@@ -1341,7 +1317,7 @@ if tab8 is not None:
                     st.success(f"Prediction #{selected_id} deleted!")
                     st.rerun()
         else:
-            st.info("📭 You haven't made any predictions yet. Go to Diabetes, Heart, Stroke, or Kidney tab to make your first prediction!")
+            st.info("📭 You have not made any predictions yet. Go to Diabetes, Heart, Stroke, or Kidney tab to make your first prediction!")
 
 
 # ========================================

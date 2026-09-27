@@ -1,6 +1,6 @@
 """
 MediFederate Legal Pages
-Privacy Policy and Terms of Service
+Privacy Policy and Terms of Service (English only)
 """
 
 import streamlit as st
@@ -18,9 +18,7 @@ def inject_legal_css():
         footer {visibility: hidden;}
         header {visibility: hidden;}
         
-        section[data-testid="stSidebar"] {
-            display: none !important;
-        }
+        section[data-testid="stSidebar"] { display: none !important; }
         
         .main .block-container {
             padding-top: 4rem;
@@ -30,7 +28,7 @@ def inject_legal_css():
         }
         
         .legal-hero {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #667eea, #764ba2);
             padding: 40px;
             border-radius: 18px;
             color: white;
@@ -44,7 +42,7 @@ def inject_legal_css():
         .legal-hero-subtitle { font-size: 0.95rem; opacity: 0.9; margin-top: 10px; }
         
         .legal-section {
-            background: linear-gradient(135deg, #1e1e2e 0%, #2a2a3e 100%);
+            background: linear-gradient(135deg, #1e1e2e, #2a2a3e);
             border: 1px solid rgba(102, 126, 234, 0.2);
             border-radius: 12px;
             padding: 24px 28px;
@@ -221,7 +219,7 @@ def render_privacy_policy():
         <h3>8. Children's Privacy</h3>
         <p>
             MediFederate is not intended for children under 13. We do not knowingly collect 
-            data from children. Parents/guardians should supervise any use by minors.
+            data from children. Parents and guardians should supervise any use by minors.
         </p>
     </div>
     
@@ -297,11 +295,11 @@ def render_terms_of_service():
     <div class="legal-section">
         <h3>3. What MediFederate Does NOT Provide</h3>
         <ul>
-            <li>❌ Professional medical diagnosis</li>
-            <li>❌ Prescription or treatment advice</li>
-            <li>❌ Real-time medical emergency services</li>
-            <li>❌ Replacement for a qualified doctor</li>
-            <li>❌ Legal or financial medical advice</li>
+            <li>Professional medical diagnosis</li>
+            <li>Prescription or treatment advice</li>
+            <li>Real-time medical emergency services</li>
+            <li>Replacement for a qualified doctor</li>
+            <li>Legal or financial medical advice</li>
         </ul>
     </div>
     
@@ -322,7 +320,7 @@ def render_terms_of_service():
         <h3>5. Medical Disclaimer</h3>
         <p>
             <strong>CRITICAL:</strong> AI predictions may be inaccurate. The models are trained 
-            on limited datasets and should not be used for real diagnosis. 
+            on limited datasets and should not be used for real diagnosis.
         </p>
         <ul>
             <li>Model accuracies: Diabetes 62%, Heart 88%, Stroke 73%, Kidney 100%</li>
@@ -350,7 +348,7 @@ def render_terms_of_service():
         <h3>7. Guest Mode</h3>
         <p>
             Patients can use MediFederate without registration (Guest Mode). No personal 
-            information is required. Predictions are still logged with "guest" tag for 
+            information is required. Predictions are still logged with a "guest" tag for 
             system statistics but are not linked to any individual.
         </p>
     </div>
