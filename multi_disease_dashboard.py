@@ -5,7 +5,7 @@ import pickle
 import tensorflow as tf
 import os
 from chatbot import HealthChatbot
-from chatbot_widget import render_floating_chatbot
+from chat_page import render_chat_page, render_floating_chatbot
 
 
 # ========================================
@@ -20,24 +20,31 @@ st.set_page_config(
 
 
 # ========================================
+# PAGE SWITCHING (Dashboard vs Chat)
+# ========================================
+if 'show_chat_page' not in st.session_state:
+    st.session_state.show_chat_page = False
+
+if st.session_state.show_chat_page:
+    render_chat_page()
+    st.stop()
+
+
+# ========================================
 # CUSTOM CSS - Professional Theme
 # ========================================
 st.markdown("""
 <style>
-    /* Import Google Font */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
     
-    /* Global Font */
     html, body, [class*="css"] {
         font-family: 'Inter', sans-serif;
     }
     
-    /* Hide Streamlit branding */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
-    /* Main container padding */
     .main .block-container {
         padding-top: 1rem;
         padding-bottom: 2rem;
@@ -98,7 +105,6 @@ st.markdown("""
         z-index: 2;
     }
     
-    /* Metric Cards */
     .metric-card {
         background: linear-gradient(135deg, #1e1e2e 0%, #2a2a3e 100%);
         border: 1px solid rgba(102, 126, 234, 0.2);
@@ -133,7 +139,6 @@ st.markdown("""
         letter-spacing: 0.5px;
     }
     
-    /* Feature Cards */
     .feature-card {
         background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
         border-left: 4px solid #667eea;
@@ -161,7 +166,6 @@ st.markdown("""
         line-height: 1.5;
     }
     
-    /* Section Header */
     .section-header {
         font-size: 1.5rem;
         font-weight: 700;
@@ -171,7 +175,6 @@ st.markdown("""
         border-bottom: 2px solid rgba(102, 126, 234, 0.3);
     }
     
-    /* Status Pills */
     .status-pill {
         display: inline-block;
         padding: 4px 12px;
@@ -184,8 +187,32 @@ st.markdown("""
     .pill-success { background: rgba(16, 185, 129, 0.15); color: #10b981; }
     .pill-info { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
     .pill-warning { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+    .pill-danger { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
     
-    /* ===== CLEAN TABS DESIGN ===== */
+    /* Navigation Card in Sidebar */
+    .nav-card {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%);
+        border: 1px solid rgba(102, 126, 234, 0.3);
+        border-radius: 12px;
+        padding: 14px;
+        margin-bottom: 10px;
+    }
+    
+    .nav-card-title {
+        color: #ffffff;
+        font-weight: 700;
+        font-size: 0.95rem;
+        margin-bottom: 10px;
+    }
+    
+    .nav-item-active {
+        color: #667eea;
+        font-size: 0.9rem;
+        font-weight: 600;
+        padding: 6px 0;
+    }
+    
+    /* CLEAN TABS */
     .stTabs [data-baseweb="tab-list"] {
         gap: 6px !important;
         background: rgba(255, 255, 255, 0.03) !important;
@@ -219,7 +246,6 @@ st.markdown("""
         font-weight: 600 !important;
     }
     
-    /* Remove Streamlit's default red underline */
     .stTabs [data-baseweb="tab-highlight"] {
         background: transparent !important;
         display: none !important;
@@ -230,12 +256,10 @@ st.markdown("""
         display: none !important;
     }
     
-    /* Sidebar styling */
     section[data-testid="stSidebar"] {
         background: linear-gradient(180deg, #0f0f1a 0%, #1a1a2e 100%);
     }
     
-    /* Clean button base style */
     .stButton > button {
         border-radius: 10px !important;
         font-weight: 500 !important;
@@ -257,12 +281,123 @@ st.markdown("""
         box-shadow: 0 4px 14px rgba(102, 126, 234, 0.3) !important;
     }
     
-    .stButton > button[kind="primary"]:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.45) !important;
+    /* Result box */
+    .result-box {
+        padding: 20px;
+        border-radius: 12px;
+        margin-top: 15px;
+        border-left: 5px solid;
+    }
+    
+    .result-high {
+        background: rgba(239, 68, 68, 0.1);
+        border-left-color: #ef4444;
+    }
+    
+    .result-low {
+        background: rgba(16, 185, 129, 0.1);
+        border-left-color: #10b981;
+    }
+    
+    .result-title {
+        font-size: 1.2rem;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+    
+    .result-prob {
+        font-size: 2rem;
+        font-weight: 800;
+        margin: 8px 0;
+    }
+    
+    .result-desc {
+        font-size: 0.9rem;
+        color: #b0b0c0;
     }
 </style>
 """, unsafe_allow_html=True)
+
+
+# ========================================
+# LOAD MODELS & PREPROCESSORS
+# ========================================
+@st.cache_resource
+def load_all_models():
+    """Load all 3 models and their preprocessors"""
+    models = {}
+    
+    try:
+        models['diabetes'] = {
+            'model': tf.keras.models.load_model('federated_dp_model.keras'),
+            'scaler': pickle.load(open('scaler.pkl', 'rb')),
+            'features': pickle.load(open('feature_names.pkl', 'rb'))
+        }
+    except Exception as e:
+        models['diabetes'] = None
+        st.warning(f"Diabetes model not loaded: {e}")
+    
+    try:
+        models['heart'] = {
+            'model': tf.keras.models.load_model('heart_dp_model.keras'),
+            'scaler': pickle.load(open('scaler_heart.pkl', 'rb')),
+            'features': pickle.load(open('feature_names_heart.pkl', 'rb'))
+        }
+    except Exception as e:
+        models['heart'] = None
+        st.warning(f"Heart model not loaded: {e}")
+    
+    try:
+        models['stroke'] = {
+            'model': tf.keras.models.load_model('stroke_dp_model.keras'),
+            'scaler': pickle.load(open('scaler_stroke.pkl', 'rb')),
+            'features': pickle.load(open('feature_names_stroke.pkl', 'rb'))
+        }
+    except Exception as e:
+        models['stroke'] = None
+        st.warning(f"Stroke model not loaded: {e}")
+    
+    return models
+
+
+with st.spinner("Loading AI models..."):
+    MODELS = load_all_models()
+
+
+def predict_heart(data_dict):
+    if MODELS['heart'] is None:
+        return None
+    m = MODELS['heart']
+    input_df = pd.DataFrame(np.zeros((1, len(m['features']))), columns=m['features'])
+    for key, val in data_dict.items():
+        if key in input_df.columns:
+            input_df[key] = val
+    input_scaled = m['scaler'].transform(input_df)
+    return float(m['model'].predict(input_scaled, verbose=0)[0][0])
+
+
+def predict_stroke(data_dict):
+    if MODELS['stroke'] is None:
+        return None
+    m = MODELS['stroke']
+    input_df = pd.DataFrame(np.zeros((1, len(m['features']))), columns=m['features'])
+    for key, val in data_dict.items():
+        if key in input_df.columns:
+            input_df[key] = val
+    input_scaled = m['scaler'].transform(input_df)
+    return float(m['model'].predict(input_scaled, verbose=0)[0][0])
+
+
+def predict_diabetes(data_dict):
+    if MODELS['diabetes'] is None:
+        return None
+    m = MODELS['diabetes']
+    input_df = pd.DataFrame(np.zeros((1, len(m['features']))), columns=m['features'])
+    for key, val in data_dict.items():
+        if key in input_df.columns:
+            input_df[key] = val
+    input_scaled = m['scaler'].transform(input_df)
+    return float(m['model'].predict(input_scaled, verbose=0)[0][0])
 
 
 # ========================================
@@ -284,31 +419,48 @@ st.markdown("""
 # SIDEBAR
 # ========================================
 with st.sidebar:
+    # ===== NAVIGATION SECTION (TOP) =====
+    st.markdown("""
+    <div class="nav-card">
+        <div class="nav-card-title">🧭 Navigation</div>
+        <div class="nav-item-active">🏠 Dashboard (Current)</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if st.button("💬  Open MediBot Chat", use_container_width=True, type="primary", key="sidebar_open_chat"):
+        st.session_state.show_chat_page = True
+        st.rerun()
+    
+    st.markdown("---")
+    
+    # ===== BRANDING =====
     st.markdown("""
     <div style="text-align:center; padding: 10px 0 20px 0;">
         <div style="font-size: 2.5rem;">🏥</div>
         <h2 style="color: white; margin: 5px 0;">MediFederate</h2>
-        <p style="color: #a0a0b0; font-size: 0.85rem; margin: 0;">v1.0 · 2026</p>
+        <p style="color: #a0a0b0; font-size: 0.85rem; margin: 0;">v2.0 · 2026</p>
     </div>
     """, unsafe_allow_html=True)
     
     st.markdown("---")
-    
     st.markdown("### 📊 Platform Stats")
-    st.markdown("""
-    <div class="metric-card" style="margin-bottom: 12px;">
-        <div class="metric-label">Total Patients</div>
-        <div class="metric-value" style="font-size: 1.6rem;">105,656</div>
-    </div>
-    <div class="metric-card" style="margin-bottom: 12px;">
-        <div class="metric-label">AI Models</div>
-        <div class="metric-value" style="font-size: 1.6rem;">3</div>
-    </div>
-    <div class="metric-card">
-        <div class="metric-label">Data Shared</div>
-        <div class="metric-value" style="font-size: 1.6rem;">0 B</div>
-    </div>
-    """, unsafe_allow_html=True)
+    
+    col_stat1, col_stat2 = st.columns(2)
+    with col_stat1:
+        if MODELS['diabetes']:
+            st.success("🩸 Diabetes ✅")
+        else:
+            st.error("🩸 Diabetes ❌")
+        if MODELS['heart']:
+            st.success("❤️ Heart ✅")
+        else:
+            st.error("❤️ Heart ❌")
+    with col_stat2:
+        if MODELS['stroke']:
+            st.success("🧠 Stroke ✅")
+        else:
+            st.error("🧠 Stroke ❌")
+        st.info("📊 Real AI")
     
     st.markdown("---")
     st.markdown("### 🛠️ Technology Stack")
@@ -319,9 +471,6 @@ with st.sidebar:
     - 🔍 **Explainable AI (SHAP)**
     - 💬 **AI Health Chatbot**
     """)
-    
-    st.markdown("---")
-    st.success("💬 Click the **💬 button** below to chat with **MediBot**")
 
 
 # ========================================
@@ -343,13 +492,11 @@ with tab1:
     
     st.markdown("""
     MediFederate enables multiple hospitals to collaboratively train AI models 
-    **without sharing any patient data**. Our platform delivers healthcare-grade 
-    predictions while preserving complete patient privacy.
+    **without sharing any patient data**. All predictions are made using **real trained neural networks**.
     """)
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Metrics Row
     col1, col2, col3 = st.columns(3)
     
     with col1:
@@ -387,7 +534,6 @@ with tab1:
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Model Comparison
     st.markdown('<div class="section-header">📊 Model Comparison</div>', unsafe_allow_html=True)
     
     col_a, col_b = st.columns([1, 1])
@@ -406,7 +552,6 @@ with tab1:
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Key Features
     st.markdown('<div class="section-header">✨ Key Features</div>', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
@@ -436,7 +581,7 @@ with tab1:
         """, unsafe_allow_html=True)
     
     st.markdown("<br>", unsafe_allow_html=True)
-    st.success("✅ **Result:** All 3 models trained with Federated Learning + Differential Privacy — **ZERO patient data shared!**")
+    st.success("✅ **All predictions are powered by real trained neural networks** with Federated Learning + Differential Privacy — **ZERO patient data shared!**")
 
 
 # ========================================
@@ -451,7 +596,7 @@ with tab2:
     with col_info2:
         st.metric("Training Data", "100,244 patients")
     with col_info3:
-        st.metric("Privacy", "✅ DP Enabled")
+        st.metric("Model Status", "✅ Loaded" if MODELS['diabetes'] else "❌ Not Loaded")
     
     st.markdown("---")
     st.markdown("#### Enter Patient Details")
@@ -468,13 +613,41 @@ with tab2:
         inpat = st.slider("Previous Inpatient Visits", 0, 21, 0, key="d_inpat")
         emerg = st.slider("Previous Emergency Visits", 0, 76, 0, key="d_emerg")
     
-    if st.button("🔮 Predict Readmission Risk", type="primary", key="d_btn"):
-        st.info(f"**Patient Summary:** Age {age} · {time_hosp} days in hospital · {meds} medications")
-        risk = (age/100)*0.3 + (time_hosp/14)*0.3 + (meds/81)*0.4
-        if risk > 0.5:
-            st.error(f"🔴 **High Risk of Readmission** — Probability: {risk*100:.1f}%")
+    if st.button("🔮 Predict Diabetes Risk", type="primary", key="d_btn"):
+        data = {
+            'age': age,
+            'time_in_hospital': time_hosp,
+            'num_medications': meds,
+            'num_lab_procedures': lab,
+            'number_diagnoses': diag,
+            'num_procedures': proc,
+            'number_inpatient': inpat,
+            'number_emergency': emerg,
+        }
+        
+        prob = predict_diabetes(data)
+        
+        if prob is not None:
+            st.info(f"**Patient Summary:** Age {age} · {time_hosp} days in hospital · {meds} medications")
+            pct = prob * 100
+            if prob > 0.5:
+                st.markdown(f"""
+                <div class="result-box result-high">
+                    <div class="result-title">🔴 High Risk of Readmission</div>
+                    <div class="result-prob">{pct:.1f}%</div>
+                    <div class="result-desc">This patient has a high probability of being readmitted. Close monitoring is recommended.</div>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div class="result-box result-low">
+                    <div class="result-title">🟢 Low Risk of Readmission</div>
+                    <div class="result-prob">{pct:.1f}%</div>
+                    <div class="result-desc">This patient has a low probability of readmission. Standard follow-up is sufficient.</div>
+                </div>
+                """, unsafe_allow_html=True)
         else:
-            st.success(f"🟢 **Low Risk of Readmission** — Probability: {risk*100:.1f}%")
+            st.error("⚠️ Diabetes model not loaded. Please check `federated_dp_model.keras`")
 
 
 # ========================================
@@ -489,7 +662,7 @@ with tab3:
     with col_info2:
         st.metric("Training Data", "303 patients")
     with col_info3:
-        st.metric("Privacy", "✅ DP Enabled")
+        st.metric("Model Status", "✅ Loaded" if MODELS['heart'] else "❌ Not Loaded")
     
     st.markdown("---")
     st.markdown("#### Enter Patient Details")
@@ -498,32 +671,59 @@ with tab3:
     with col1:
         age_h = st.slider("Age", 20, 90, 55, key="h_age")
         sex_h = st.selectbox("Gender", ["Male", "Female"], key="h_sex")
-        cp_h = st.slider("Chest Pain Type (0-3)", 0, 3, 1, key="h_cp")
+        cp_h = st.slider("Chest Pain Type (0=typical, 1=atypical, 2=non-anginal, 3=asymptomatic)", 0, 3, 1, key="h_cp")
         trestbps = st.slider("Resting BP (mm Hg)", 90, 200, 130, key="h_bp")
         chol = st.slider("Cholesterol (mg/dl)", 100, 600, 240, key="h_chol")
         fbs = st.selectbox("Fasting Blood Sugar > 120", ["No", "Yes"], key="h_fbs")
     with col2:
-        restecg = st.slider("Resting ECG (0-2)", 0, 2, 1, key="h_ecg")
+        restecg = st.slider("Resting ECG (0=normal, 1=ST-T, 2=LVH)", 0, 2, 1, key="h_ecg")
         thalach = st.slider("Max Heart Rate", 70, 210, 150, key="h_hr")
         exang = st.selectbox("Exercise Induced Angina", ["No", "Yes"], key="h_exang")
         oldpeak = st.slider("ST Depression", 0.0, 7.0, 1.0, key="h_old")
-        slope = st.slider("Slope (0-2)", 0, 2, 1, key="h_slope")
+        slope = st.slider("Slope (0=up, 1=flat, 2=down)", 0, 2, 1, key="h_slope")
         ca = st.slider("Major Vessels (0-3)", 0, 3, 0, key="h_ca")
+        thal = st.selectbox("Thalassemia (1=normal, 2=fixed, 3=reversible)", [1, 2, 3], key="h_thal")
     
     if st.button("🔮 Predict Heart Disease", type="primary", key="h_btn"):
-        risk = 0.0
-        risk += (age_h / 90) * 0.25
-        risk += (chol / 600) * 0.20
-        risk += (trestbps / 200) * 0.15
-        risk += (1 - thalach / 210) * 0.20
-        risk += oldpeak / 7 * 0.20
-        risk = min(risk, 1.0)
+        data = {
+            'age': age_h,
+            'sex': 1.0 if sex_h == "Male" else 0.0,
+            'cp': float(cp_h),
+            'trestbps': float(trestbps),
+            'chol': float(chol),
+            'fbs': 1.0 if fbs == "Yes" else 0.0,
+            'restecg': float(restecg),
+            'thalach': float(thalach),
+            'exang': 1.0 if exang == "Yes" else 0.0,
+            'oldpeak': float(oldpeak),
+            'slope': float(slope),
+            'ca': float(ca),
+            'thal': float(thal),
+        }
         
-        st.info(f"**Patient Summary:** Age {age_h} · {sex_h} · BP {trestbps} · Chol {chol}")
-        if risk > 0.5:
-            st.error(f"🔴 **High Risk of Heart Disease** — Probability: {risk*100:.1f}%")
+        prob = predict_heart(data)
+        
+        if prob is not None:
+            st.info(f"**Patient Summary:** Age {age_h} · {sex_h} · BP {trestbps} · Chol {chol} · MaxHR {thalach}")
+            pct = prob * 100
+            if prob > 0.5:
+                st.markdown(f"""
+                <div class="result-box result-high">
+                    <div class="result-title">🔴 High Risk of Heart Disease</div>
+                    <div class="result-prob">{pct:.1f}%</div>
+                    <div class="result-desc">This patient shows signs of heart disease. Further cardiac evaluation is recommended.</div>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div class="result-box result-low">
+                    <div class="result-title">🟢 Low Risk of Heart Disease</div>
+                    <div class="result-prob">{pct:.1f}%</div>
+                    <div class="result-desc">This patient shows low risk for heart disease. Routine checkup is sufficient.</div>
+                </div>
+                """, unsafe_allow_html=True)
         else:
-            st.success(f"🟢 **Low Risk of Heart Disease** — Probability: {risk*100:.1f}%")
+            st.error("⚠️ Heart model not loaded. Please check `heart_dp_model.keras`")
 
 
 # ========================================
@@ -538,7 +738,7 @@ with tab4:
     with col_info2:
         st.metric("Training Data", "5,109 patients")
     with col_info3:
-        st.metric("Privacy", "✅ DP Enabled")
+        st.metric("Model Status", "✅ Loaded" if MODELS['stroke'] else "❌ Not Loaded")
     
     st.markdown("---")
     st.markdown("#### Enter Patient Details")
@@ -558,24 +758,49 @@ with tab4:
         smoking = st.selectbox("Smoking Status", ["never smoked", "formerly smoked", "smokes", "Unknown"], key="s_smoke")
     
     if st.button("🔮 Predict Stroke Risk", type="primary", key="s_btn"):
-        risk = 0.0
-        risk += (age_s / 90) * 0.35
-        risk += (glucose / 300) * 0.20
-        risk += (bmi / 60) * 0.15
-        if hyp == "Yes": risk += 0.10
-        if heart == "Yes": risk += 0.10
-        if smoking == "smokes": risk += 0.10
-        risk = min(risk, 1.0)
+        data = {
+            'gender': 1.0 if gender_s == "Male" else 0.0,
+            'age': float(age_s),
+            'hypertension': 1.0 if hyp == "Yes" else 0.0,
+            'heart_disease': 1.0 if heart == "Yes" else 0.0,
+            'ever_married': 1.0 if married == "Yes" else 0.0,
+            'Residence_type': 1.0 if residence == "Urban" else 0.0,
+            'avg_glucose_level': float(glucose),
+            'bmi': float(bmi),
+            'smoking_status': {'never smoked': 0.0, 'formerly smoked': 1.0, 'smokes': 2.0, 'Unknown': 3.0}[smoking],
+        }
         
-        st.info(f"**Patient Summary:** Age {age_s} · {gender_s} · Glucose {glucose} · BMI {bmi}")
-        if risk > 0.5:
-            st.error(f"🔴 **High Risk of Stroke** — Probability: {risk*100:.1f}%")
+        work_types = ['Never_worked', 'Private', 'Self-employed', 'children']
+        for wt in work_types:
+            data[f'work_type_{wt}'] = 1.0 if work == wt else 0.0
+        
+        prob = predict_stroke(data)
+        
+        if prob is not None:
+            st.info(f"**Patient Summary:** Age {age_s} · {gender_s} · Glucose {glucose} · BMI {bmi} · {smoking}")
+            pct = prob * 100
+            if prob > 0.5:
+                st.markdown(f"""
+                <div class="result-box result-high">
+                    <div class="result-title">🔴 High Risk of Stroke</div>
+                    <div class="result-prob">{pct:.1f}%</div>
+                    <div class="result-desc">This patient has a high risk of stroke. Immediate medical consultation is recommended.</div>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div class="result-box result-low">
+                    <div class="result-title">🟢 Low Risk of Stroke</div>
+                    <div class="result-prob">{pct:.1f}%</div>
+                    <div class="result-desc">This patient has a low risk of stroke. Maintain a healthy lifestyle.</div>
+                </div>
+                """, unsafe_allow_html=True)
         else:
-            st.success(f"🟢 **Low Risk of Stroke** — Probability: {risk*100:.1f}%")
+            st.error("⚠️ Stroke model not loaded. Please check `stroke_dp_model.keras`")
 
 
 # ========================================
-# FLOATING WIDGET (💬 button)
+# FLOATING WIDGET
 # ========================================
 render_floating_chatbot()
 
@@ -587,10 +812,10 @@ st.markdown("---")
 st.markdown("""
 <div style="text-align: center; padding: 20px 0; color: #808090;">
     <p style="margin: 0; font-size: 0.9rem;">
-        🎓 <strong>CS Final Year Project 2026</strong> · MediFederate Platform
+        🎓 <strong>CS Final Year Project 2026</strong> · MediFederate Platform v2.0
     </p>
     <p style="margin: 5px 0 0 0; font-size: 0.8rem;">
-        Federated Learning · Differential Privacy · Explainable AI · AI Chatbot
+        Federated Learning · Differential Privacy · Explainable AI · AI Chatbot · Real Neural Networks
     </p>
 </div>
 """, unsafe_allow_html=True)

@@ -19,3 +19,4 @@ data/diabetic_data.csv
 # Windows files
 Thumbs.db
 desktop.ini
+.env
