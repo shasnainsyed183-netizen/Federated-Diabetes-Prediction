@@ -661,11 +661,11 @@ with tab1:
             "Data Shared": ["0 B", "0 B", "0 B", "0 B", "0 B"],
             "Privacy": ["✅ DP", "✅ DP", "✅ DP", "✅ DP", "✅ DP"]
         })
-        st.dataframe(comparison, use_container_width=True, hide_index=True)
+        st.dataframe(comparison, width='stretch', hide_index=True)
     
     with col_b:
         fig = ui.plotly_model_comparison(comparison)
-        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False}, key="overview_chart")
+        st.plotly_chart(fig, width='stretch', config={'displayModeBar': False}, key="overview_chart")
     
     st.markdown("<br>", unsafe_allow_html=True)
     
@@ -776,7 +776,7 @@ with tab2:
             st.download_button(
                 label="📄  Download PDF Report", data=pdf_bytes,
                 file_name=f"MediFederate_Diabetes_Report_{age}y_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                mime="application/pdf", use_container_width=True, key="d_download_btn"
+                mime="application/pdf", width='stretch', key="d_download_btn"
             )
         else:
             st.error("⚠️ Diabetes model not loaded.")
@@ -867,7 +867,7 @@ with tab3:
             st.download_button(
                 label="📄  Download PDF Report", data=pdf_bytes,
                 file_name=f"MediFederate_Heart_Report_{age_h}y_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                mime="application/pdf", use_container_width=True, key="h_download_btn"
+                mime="application/pdf", width='stretch', key="h_download_btn"
             )
         else:
             st.error("⚠️ Heart model not loaded.")
@@ -959,7 +959,7 @@ with tab4:
             st.download_button(
                 label="📄  Download PDF Report", data=pdf_bytes,
                 file_name=f"MediFederate_Stroke_Report_{age_s}y_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                mime="application/pdf", use_container_width=True, key="s_download_btn"
+                mime="application/pdf", width='stretch', key="s_download_btn"
             )
         else:
             st.error("⚠️ Stroke model not loaded.")
@@ -1061,7 +1061,7 @@ with tab5:
             st.download_button(
                 label="📄  Download PDF Report", data=pdf_bytes,
                 file_name=f"MediFederate_Kidney_Report_{age_k}y_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                mime="application/pdf", use_container_width=True, key="k_download_btn"
+                mime="application/pdf", width='stretch', key="k_download_btn"
             )
         else:
             st.error("⚠️ Kidney model not loaded.")
@@ -1179,7 +1179,7 @@ with tab6:
             st.download_button(
                 label="📄  Download PDF Report", data=pdf_bytes,
                 file_name=f"MediFederate_Thyroid_Report_{t_age}y_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                mime="application/pdf", use_container_width=True, key="t_download_btn"
+                mime="application/pdf", width='stretch', key="t_download_btn"
             )
         else:
             st.error("⚠️ Thyroid model not loaded.")
@@ -1223,7 +1223,7 @@ with tab7:
             </div>
             """, unsafe_allow_html=True)
             
-            if st.button(f"💬 Ask MediBot about {item['title']}", key=f"gal_btn_{i}", use_container_width=True):
+            if st.button(f"💬 Ask MediBot about {item['title']}", key=f"gal_btn_{i}", width='stretch'):
                 st.session_state.show_chat_page = True
                 st.session_state.pending_chat_query = item['query']
                 st.rerun()
@@ -1242,7 +1242,7 @@ with tab7:
                 </div>
                 """, unsafe_allow_html=True)
                 
-                if st.button(f"💬 Ask MediBot about {item['title']}", key=f"gal_btn_{i+1}", use_container_width=True):
+                if st.button(f"💬 Ask MediBot about {item['title']}", key=f"gal_btn_{i+1}", width='stretch'):
                     st.session_state.show_chat_page = True
                     st.session_state.pending_chat_query = item['query']
                     st.rerun()
@@ -1431,12 +1431,12 @@ if tab9 is not None:
             st.download_button(
                 label="📥  Export My History to CSV", data=csv_data,
                 file_name=f"My_Predictions_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                mime="text/csv", use_container_width=True, key="hist_export"
+                mime="text/csv", width='stretch', key="hist_export"
             )
         
         with col_f3:
             st.markdown("&nbsp;")
-            if st.button("🗑️  Clear My History", use_container_width=True, key="hist_clear"):
+            if st.button("🗑️  Clear My History", width='stretch', key="hist_clear"):
                 hist.clear_all_predictions(user_email=user_email)
                 st.success("Your history cleared!")
                 st.rerun()
@@ -1449,12 +1449,12 @@ if tab9 is not None:
         with col_chart1:
             disease_dist = hist.get_disease_distribution(user_email=user_email)
             fig1 = ui.plotly_disease_donut(disease_dist, "My Disease Distribution")
-            st.plotly_chart(fig1, use_container_width=True, config={'displayModeBar': False}, key="hist_disease_chart")
+            st.plotly_chart(fig1, width='stretch', config={'displayModeBar': False}, key="hist_disease_chart")
         
         with col_chart2:
             risk_dist = hist.get_risk_distribution(user_email=user_email)
             fig2 = ui.plotly_risk_bars(risk_dist, "My Risk Distribution")
-            st.plotly_chart(fig2, use_container_width=True, config={'displayModeBar': False}, key="hist_risk_chart")
+            st.plotly_chart(fig2, width='stretch', config={'displayModeBar': False}, key="hist_risk_chart")
         
         st.markdown("---")
         st.markdown("##### 📋 My Predictions")
@@ -1466,7 +1466,7 @@ if tab9 is not None:
             display_df = df[cols_to_show].copy()
             display_df['probability'] = (display_df['probability'] * 100).round(1).astype(str) + '%'
             
-            st.dataframe(display_df, use_container_width=True, hide_index=True)
+            st.dataframe(display_df, width='stretch', hide_index=True)
             
             st.markdown("---")
             st.markdown("##### 🔍 View Details")
@@ -1511,17 +1511,17 @@ st.markdown("<br>", unsafe_allow_html=True)
 col_l1, col_l2, col_l3 = st.columns(3)
 
 with col_l1:
-    if st.button("📋  Privacy Policy", use_container_width=True, key="footer_privacy"):
+    if st.button("📋  Privacy Policy", width='stretch', key="footer_privacy"):
         st.session_state.show_privacy_page = True
         st.rerun()
 
 with col_l2:
-    if st.button("📜  Terms of Service", use_container_width=True, key="footer_terms"):
+    if st.button("📜  Terms of Service", width='stretch', key="footer_terms"):
         st.session_state.show_terms_page = True
         st.rerun()
 
 with col_l3:
-    if st.button("📧  Contact Support", use_container_width=True, key="footer_contact"):
+    if st.button("📧  Contact Support", width='stretch', key="footer_contact"):
         st.session_state.show_email_page = True
         st.rerun()
 
