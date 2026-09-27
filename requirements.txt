@@ -1,8 +1,8 @@
-streamlit==1.40.0
+streamlit
 pandas
 numpy
 scikit-learn
-tensorflow-cpu==2.20.0
+tensorflow-cpu
 matplotlib
 seaborn
 reportlab
@@ -10,4 +10,3 @@ groq
 python-dotenv
 bcrypt
 shap
-pickle-mixin
