@@ -18,6 +18,8 @@ def init_chat_state():
         _create_new_chat()
     if 'chatbot_instance' not in st.session_state:
         st.session_state.chatbot_instance = HealthChatbot()
+    if 'pending_chat_query' not in st.session_state:
+        st.session_state.pending_chat_query = None
 
 
 def _create_new_chat():
@@ -172,7 +174,6 @@ def render_chat_page():
     
     # ============ SIDEBAR ============
     with st.sidebar:
-        # ===== BACK BUTTON (TOP OF SIDEBAR) =====
         if st.button("🏠  Back to Home", use_container_width=True, type="primary", key="back_home_sidebar"):
             st.session_state.show_chat_page = False
             st.rerun()
@@ -194,7 +195,6 @@ def render_chat_page():
         st.markdown("---")
         st.markdown("##### 💬 Chat History")
         
-        # List all chats (newest first)
         chat_items = list(st.session_state.chat_sessions.items())[::-1]
         
         for chat_id, chat_data in chat_items:
@@ -239,6 +239,12 @@ def render_chat_page():
     """, unsafe_allow_html=True)
     
     st.markdown("---")
+    
+    # ===== Handle pending query from Gallery =====
+    if st.session_state.get('pending_chat_query'):
+        query = st.session_state.pending_chat_query
+        st.session_state.pending_chat_query = None
+        _handle_message(query)
     
     # ============ WELCOME SCREEN ============
     if not current_chat['messages']:

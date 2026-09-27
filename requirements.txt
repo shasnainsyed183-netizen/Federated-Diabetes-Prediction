@@ -1,7 +1,13 @@
-tensorflow==2.21.0
+streamlit==1.40.0
 pandas
 numpy
 scikit-learn
+tensorflow-cpu==2.20.0
 matplotlib
 seaborn
-streamlit
+reportlab
+groq
+python-dotenv
+bcrypt
+shap
+pickle-mixin

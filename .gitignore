@@ -3,15 +3,12 @@ venv/
 __pycache__/
 *.pyc
 
-# Large Model Files (GitHub par upload nahi honge)
-*.h5
-*.keras
-
 # Data Files (bohot bara hai)
 data/diabetic_data.csv
 
-# Scaler files
-*.pkl
+# Database Files (local only)
+predictions_history.db
+users.db
 
 # VS Code settings
 .vscode/
@@ -19,4 +16,6 @@ data/diabetic_data.csv
 # Windows files
 Thumbs.db
 desktop.ini
+
+# Environment Variables (API keys)
 .env
