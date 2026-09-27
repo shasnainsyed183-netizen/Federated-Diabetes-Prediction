@@ -17,6 +17,8 @@ Built with **Federated Learning** + **Differential Privacy** to deliver accurate
 
 ### 🚀 **[Try the Live Demo →](https://federated-diabetes-prediction-a2xkixwcd2dm56fjfwp5gw.streamlit.app)**
 
+### 🌐 **[Live REST API (Swagger UI) →](https://federated-diabetes-prediction-production.up.railway.app/docs)**
+
 ---
 
 ## 📸 Screenshots
@@ -109,6 +111,7 @@ Built with **Federated Learning** + **Differential Privacy** to deliver accurate
 
 **Deployment:**
 - Streamlit Community Cloud
+- Railway
 - Git + GitHub
 
 ---
@@ -156,6 +159,8 @@ Federated_Diabetes_Project/
 ├── shap_explainer.py            # SHAP analysis
 │
 ├── api.py                       # REST API (FastAPI)
+├── railway.json                 # Railway deployment config
+├── Procfile                     # Process file for deployment
 ├── requirements.txt
 ├── README.md
 └── PROJECT_REPORT.md
@@ -194,8 +199,14 @@ uvicorn api:app --reload
 
 MediFederate also provides a production-grade REST API for all 5 disease predictions.
 
-**Interactive API Documentation (Swagger UI):**
-Once the server is running, open your browser and go to:
+**🌍 Live API URL:** 
+https://federated-diabetes-prediction-production.up.railway.app
+
+**📖 Live Interactive Documentation (Swagger UI):** 
+https://federated-diabetes-prediction-production.up.railway.app/docs
+
+**🖥️ Local API Documentation:**
+Once the server is running locally, open your browser and go to:
 ```text
 http://127.0.0.1:8000/docs
 ```
