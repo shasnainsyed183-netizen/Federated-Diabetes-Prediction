@@ -141,7 +141,7 @@ def generate_medical_report(disease_type, patient_data, prediction_result):
     # Patient Data
     story.append(Paragraph("👤 Patient Details", section_style))
     
-    patient_rows = [["Parameter", "Value", "Parameter", "Value"]]
+    patient_rows = [["Parameter", "Detail", "Parameter", "Detail"]]
     items = list(patient_data.items())
     
     for i in range(0, len(items), 2):
@@ -270,6 +270,17 @@ def _get_high_risk_recommendations(disease_type):
             "Get regular follow-up every 1-3 months.",
             "Watch for warning signs: swelling in legs, fatigue, decreased urination, foamy urine.",
         ],
+        "Thyroid Disease": [
+            "Consult an endocrinologist for comprehensive thyroid evaluation.",
+            "Get complete thyroid panel: TSH, T3, T4, Free T3, Free T4, and thyroid antibodies.",
+            "Take prescribed thyroid medications (like levothyroxine) on empty stomach, 30-60 minutes before breakfast.",
+            "Avoid taking thyroid medication with calcium, iron, or antacids — they reduce absorption.",
+            "Get thyroid function tests every 6-8 weeks until stable, then every 6-12 months.",
+            "Watch for warning signs: unexplained weight change, fatigue, hair loss, mood swings, neck swelling.",
+            "Limit soy products, raw cruciferous vegetables (cabbage, broccoli), and excess iodine.",
+            "Regular follow-up every 3 months.",
+            "Consider thyroid ultrasound if nodules are suspected.",
+        ],
     }
     return recs.get(disease_type, ["Consult a doctor immediately."])
 
@@ -310,6 +321,16 @@ def _get_low_risk_recommendations(disease_type):
             "Eat a balanced diet rich in fruits and vegetables.",
             "Get annual kidney function tests (creatinine, BUN).",
             "Maintain a healthy weight and exercise regularly.",
+        ],
+        "Thyroid Disease": [
+            "Great! Your thyroid function appears normal. Continue healthy habits.",
+            "Eat a balanced diet rich in iodine (dairy, seafood, iodized salt).",
+            "Get annual thyroid function tests (TSH, T3, T4).",
+            "Maintain a healthy weight with regular exercise.",
+            "Manage stress with yoga, meditation, or adequate sleep.",
+            "Avoid excessive consumption of raw cruciferous vegetables (cabbage, broccoli).",
+            "Stay physically active — 30 minutes of exercise, 5 days a week.",
+            "Attend annual health checkups.",
         ],
     }
     return recs.get(disease_type, ["Continue healthy lifestyle."])

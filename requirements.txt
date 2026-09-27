@@ -13,3 +13,4 @@ shap
 plotly
 fastapi
 uvicorn
+requests
