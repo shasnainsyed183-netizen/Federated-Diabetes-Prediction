@@ -11,17 +11,46 @@ import history_db as hist
 import auth
 from login_page import render_login_page, logout
 from info_pages import render_email_page, render_website_page
+from legal_pages import render_privacy_policy, render_terms_of_service
+from settings_page import show_settings_dialog
+import ui_helpers as ui
 
 
-# ========================================
-# PAGE CONFIG
-# ========================================
 st.set_page_config(
     page_title="MediFederate | Multi-Disease AI Platform",
     page_icon="🏥",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
+
+
+# ========================================
+# INFO & LEGAL PAGES SWITCHING (BEFORE LOGIN)
+# ========================================
+if 'show_email_page' not in st.session_state:
+    st.session_state.show_email_page = False
+if 'show_website_page' not in st.session_state:
+    st.session_state.show_website_page = False
+if 'show_privacy_page' not in st.session_state:
+    st.session_state.show_privacy_page = False
+if 'show_terms_page' not in st.session_state:
+    st.session_state.show_terms_page = False
+
+if st.session_state.show_email_page:
+    render_email_page()
+    st.stop()
+
+if st.session_state.show_website_page:
+    render_website_page()
+    st.stop()
+
+if st.session_state.show_privacy_page:
+    render_privacy_policy()
+    st.stop()
+
+if st.session_state.show_terms_page:
+    render_terms_of_service()
+    st.stop()
 
 
 # ========================================
@@ -34,23 +63,6 @@ if 'user' not in st.session_state:
 
 if not st.session_state.logged_in:
     render_login_page()
-    st.stop()
-
-
-# ========================================
-# INFO PAGES SWITCHING
-# ========================================
-if 'show_email_page' not in st.session_state:
-    st.session_state.show_email_page = False
-if 'show_website_page' not in st.session_state:
-    st.session_state.show_website_page = False
-
-if st.session_state.show_email_page:
-    render_email_page()
-    st.stop()
-
-if st.session_state.show_website_page:
-    render_website_page()
     st.stop()
 
 
@@ -77,7 +89,7 @@ def load_diabetes_model():
             'scaler': pickle.load(open('scaler.pkl', 'rb')),
             'features': pickle.load(open('feature_names.pkl', 'rb'))
         }
-    except Exception as e:
+    except Exception:
         return None
 
 
@@ -90,7 +102,7 @@ def load_heart_model():
             'scaler': pickle.load(open('scaler_heart.pkl', 'rb')),
             'features': pickle.load(open('feature_names_heart.pkl', 'rb'))
         }
-    except Exception as e:
+    except Exception:
         return None
 
 
@@ -103,7 +115,7 @@ def load_stroke_model():
             'scaler': pickle.load(open('scaler_stroke.pkl', 'rb')),
             'features': pickle.load(open('feature_names_stroke.pkl', 'rb'))
         }
-    except Exception as e:
+    except Exception:
         return None
 
 
@@ -116,7 +128,7 @@ def load_kidney_model():
             'scaler': pickle.load(open('scaler_kidney.pkl', 'rb')),
             'features': pickle.load(open('feature_names_kidney.pkl', 'rb'))
         }
-    except Exception as e:
+    except Exception:
         return None
 
 
@@ -139,14 +151,70 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
     
-    html, body, [class*="css"] {
-        font-family: 'Inter', sans-serif;
-    }
+    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
+    /* ===== REMOVE SIDEBAR COMPLETELY ===== */
+    section[data-testid="stSidebar"],
+    [data-testid="stSidebarCollapsedControl"],
+    [data-testid="collapsedControl"] {
+        display: none !important;
+        visibility: hidden !important;
+        width: 0 !important;
+    }
+    
+    /* ===== TOP-RIGHT FLOATING BUTTONS ===== */
+    .st-key-top_settings_btn,
+    .st-key-top_chat_btn,
+    .st-key-top_email_btn,
+    .st-key-top_web_btn {
+        position: fixed !important;
+        z-index: 999999 !important;
+    }
+    
+    .st-key-top_settings_btn { top: 20px !important; right: 20px !important; }
+    .st-key-top_chat_btn { top: 20px !important; right: 85px !important; }
+    .st-key-top_email_btn { top: 20px !important; right: 150px !important; }
+    .st-key-top_web_btn { top: 20px !important; right: 215px !important; }
+    
+    .st-key-top_settings_btn button,
+    .st-key-top_chat_btn button,
+    .st-key-top_email_btn button,
+    .st-key-top_web_btn button {
+        width: 52px !important;
+        height: 52px !important;
+        border-radius: 50% !important;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: white !important;
+        font-size: 22px !important;
+        border: 2px solid rgba(255, 255, 255, 0.25) !important;
+        box-shadow: 0 4px 14px rgba(102, 126, 234, 0.5) !important;
+        transition: all 0.3s ease !important;
+        padding: 0 !important;
+        cursor: pointer !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-width: 0 !important;
+    }
+    
+    .st-key-top_settings_btn button:hover,
+    .st-key-top_chat_btn button:hover,
+    .st-key-top_email_btn button:hover,
+    .st-key-top_web_btn button:hover {
+        transform: scale(1.15) !important;
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.8) !important;
+    }
+    
+    .st-key-top_settings_btn button { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important; box-shadow: 0 4px 14px rgba(245, 158, 11, 0.5) !important; }
+    .st-key-top_chat_btn button { background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.5) !important; }
+    .st-key-top_email_btn button { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.5) !important; }
+    .st-key-top_web_btn button { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important; box-shadow: 0 4px 14px rgba(139, 92, 246, 0.5) !important; }
+    
+    /* ===== MAIN AREA ===== */
     .main .block-container {
         padding-top: 1rem;
         padding-bottom: 2rem;
@@ -254,18 +322,8 @@ st.markdown("""
         border-left-color: #764ba2;
     }
     
-    .feature-title {
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: #ffffff;
-        margin-bottom: 6px;
-    }
-    
-    .feature-desc {
-        font-size: 0.9rem;
-        color: #b0b0c0;
-        line-height: 1.5;
-    }
+    .feature-title { font-size: 1.1rem; font-weight: 600; color: #ffffff; margin-bottom: 6px; }
+    .feature-desc { font-size: 0.9rem; color: #b0b0c0; line-height: 1.5; }
     
     .section-header {
         font-size: 1.5rem;
@@ -290,61 +348,6 @@ st.markdown("""
     .pill-warning { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
     .pill-danger { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
     
-    .nav-card {
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%);
-        border: 1px solid rgba(102, 126, 234, 0.3);
-        border-radius: 12px;
-        padding: 14px;
-        margin-bottom: 10px;
-    }
-    
-    .nav-card-title {
-        color: #ffffff;
-        font-weight: 700;
-        font-size: 0.95rem;
-        margin-bottom: 10px;
-    }
-    
-    .nav-item-active {
-        color: #667eea;
-        font-size: 0.9rem;
-        font-weight: 600;
-        padding: 6px 0;
-    }
-    
-    .user-card {
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
-        border: 1px solid rgba(102, 126, 234, 0.4);
-        border-radius: 12px;
-        padding: 14px;
-        margin-bottom: 10px;
-        text-align: center;
-    }
-    
-    .user-avatar {
-        font-size: 2rem;
-        margin-bottom: 6px;
-    }
-    
-    .user-name {
-        color: #ffffff;
-        font-weight: 700;
-        font-size: 0.95rem;
-        margin-bottom: 3px;
-    }
-    
-    .user-email {
-        color: #a0a0b0;
-        font-size: 0.75rem;
-        margin-bottom: 4px;
-    }
-    
-    .user-hospital {
-        color: #667eea;
-        font-size: 0.7rem;
-        font-weight: 500;
-    }
-    
     .contact-card {
         background: linear-gradient(135deg, #1e1e2e 0%, #2a2a3e 100%);
         border: 1px solid rgba(102, 126, 234, 0.2);
@@ -359,28 +362,10 @@ st.markdown("""
         transform: translateY(-3px);
     }
     
-    .contact-card .contact-icon {
-        font-size: 1.8rem;
-        margin-bottom: 8px;
-    }
-    
-    .contact-card .contact-title {
-        color: #ffffff;
-        font-weight: 600;
-        font-size: 1rem;
-        margin-bottom: 5px;
-    }
-    
-    .contact-card .contact-info {
-        color: #b0b0c0;
-        font-size: 0.88rem;
-        line-height: 1.6;
-    }
-    
-    .contact-card .contact-info strong {
-        color: #10b981;
-        font-size: 1rem;
-    }
+    .contact-card .contact-icon { font-size: 1.8rem; margin-bottom: 8px; }
+    .contact-card .contact-title { color: #ffffff; font-weight: 600; font-size: 1rem; margin-bottom: 5px; }
+    .contact-card .contact-info { color: #b0b0c0; font-size: 0.88rem; line-height: 1.6; }
+    .contact-card .contact-info strong { color: #10b981; font-size: 1rem; }
     
     .emergency-badge {
         display: inline-block;
@@ -411,17 +396,8 @@ st.markdown("""
         box-shadow: 0 12px 35px rgba(102, 126, 234, 0.3);
     }
     
-    .gallery-image {
-        width: 100%;
-        height: 200px;
-        object-fit: cover;
-        display: block;
-    }
-    
-    .gallery-body {
-        padding: 18px 20px 22px 20px;
-    }
-    
+    .gallery-image { width: 100%; height: 200px; object-fit: cover; display: block; }
+    .gallery-body { padding: 18px 20px 22px 20px; }
     .gallery-category {
         display: inline-block;
         padding: 3px 10px;
@@ -434,19 +410,8 @@ st.markdown("""
         color: #667eea;
         margin-bottom: 10px;
     }
-    
-    .gallery-title {
-        font-size: 1.15rem;
-        font-weight: 700;
-        color: #ffffff;
-        margin-bottom: 8px;
-    }
-    
-    .gallery-desc {
-        font-size: 0.88rem;
-        color: #b0b0c0;
-        line-height: 1.5;
-    }
+    .gallery-title { font-size: 1.15rem; font-weight: 700; color: #ffffff; margin-bottom: 8px; }
+    .gallery-desc { font-size: 0.88rem; color: #b0b0c0; line-height: 1.5; }
     
     .stTabs [data-baseweb="tab-list"] {
         gap: 6px !important;
@@ -482,18 +447,10 @@ st.markdown("""
         font-weight: 600 !important;
     }
     
-    .stTabs [data-baseweb="tab-highlight"] {
-        background: transparent !important;
-        display: none !important;
-    }
-    
+    .stTabs [data-baseweb="tab-highlight"],
     .stTabs [data-baseweb="tab-border"] {
         background: transparent !important;
         display: none !important;
-    }
-    
-    section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #0f0f1a 0%, #1a1a2e 100%);
     }
     
     .stButton > button {
@@ -525,12 +482,6 @@ st.markdown("""
         padding: 12px 24px !important;
         font-weight: 600 !important;
         box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3) !important;
-        transition: all 0.25s ease !important;
-    }
-    
-    .stDownloadButton > button:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 8px 20px rgba(16, 185, 129, 0.45) !important;
     }
     
     .result-box {
@@ -540,43 +491,52 @@ st.markdown("""
         border-left: 5px solid;
     }
     
-    .result-high {
-        background: rgba(239, 68, 68, 0.1);
-        border-left-color: #ef4444;
-    }
-    
-    .result-low {
-        background: rgba(16, 185, 129, 0.1);
-        border-left-color: #10b981;
-    }
-    
-    .result-title {
-        font-size: 1.2rem;
-        font-weight: 700;
-        margin-bottom: 8px;
-    }
-    
-    .result-prob {
-        font-size: 2rem;
-        font-weight: 800;
-        margin: 8px 0;
-    }
-    
-    .result-desc {
-        font-size: 0.9rem;
-        color: #b0b0c0;
-    }
+    .result-high { background: rgba(239, 68, 68, 0.1); border-left-color: #ef4444; }
+    .result-low { background: rgba(16, 185, 129, 0.1); border-left-color: #10b981; }
+    .result-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 8px; }
+    .result-prob { font-size: 2rem; font-weight: 800; margin: 8px 0; }
+    .result-desc { font-size: 0.9rem; color: #b0b0c0; }
 </style>
 """, unsafe_allow_html=True)
+
+
+ui.inject_ui_css()
+
+
+# ========================================
+# TOP-RIGHT FLOATING BUTTONS
+# ========================================
+current_user = st.session_state.user
+is_patient = current_user.get('role') == 'patient'
+role_label = "Patient" if is_patient else "Doctor"
+user_email = current_user.get('email', 'guest@medifederate')
+
+# Avatar emoji
+avatar_emoji = "👤" if is_patient else "👨‍⚕️"
+
+# Settings button (top-right corner)
+if st.button(avatar_emoji, key="top_settings_btn", help="Settings & Account"):
+    show_settings_dialog()
+
+# Chat button
+if st.button("💬", key="top_chat_btn", help="Open MediBot Chat"):
+    st.session_state.show_chat_page = True
+    st.rerun()
+
+# Email button
+if st.button("📧", key="top_email_btn", help="Email Support"):
+    st.session_state.show_email_page = True
+    st.rerun()
+
+# Website button
+if st.button("🌐", key="top_web_btn", help="Visit Website"):
+    st.session_state.show_website_page = True
+    st.rerun()
 
 
 # ========================================
 # HERO HEADER
 # ========================================
-current_user = st.session_state.user
-is_patient = current_user.get('role') == 'patient'
-role_label = "Patient" if is_patient else "Doctor"
-
 st.markdown(f"""
 <div class="hero-header">
     <div class="hero-badge">🏆 Final Year Project 2026</div>
@@ -590,107 +550,38 @@ st.markdown(f"""
 
 
 # ========================================
-# SIDEBAR
+# TOP NAVIGATION BAR (Actions)
 # ========================================
-with st.sidebar:
-    if is_patient:
-        st.markdown("""
-        <div class="user-card">
-            <div class="user-avatar">👤</div>
-            <div class="user-name">Patient Mode</div>
-            <div class="user-email">Guest Access</div>
-            <div class="user-hospital">🏥 No Login Required</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        if st.button("🔐  Login as Doctor", use_container_width=True, key="switch_to_doctor"):
-            st.session_state.logged_in = False
-            st.session_state.user = None
-            st.session_state.show_chat_page = False
-            st.rerun()
-    else:
-        st.markdown(f"""
-        <div class="user-card">
-            <div class="user-avatar">👨‍⚕️</div>
-            <div class="user-name">{current_user['full_name']}</div>
-            <div class="user-email">{current_user['email']}</div>
-            <div class="user-hospital">🏥 {current_user.get('hospital', 'N/A')}</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        if st.button("🚪  Logout", use_container_width=True, key="logout_btn"):
-            logout()
-    
-    st.markdown("---")
-    
-    st.markdown("""
-    <div class="nav-card">
-        <div class="nav-card-title">🧭 Navigation</div>
-        <div class="nav-item-active">🏠 Dashboard (Current)</div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    if st.button("💬  Open MediBot Chat", use_container_width=True, type="primary", key="sidebar_open_chat"):
+col_nav1, col_nav2, col_nav3 = st.columns([1, 1, 1])
+
+with col_nav1:
+    if st.button("🚪  Logout", use_container_width=True, key="top_logout_btn"):
+        logout()
+
+with col_nav2:
+    if st.button(f"👤  {current_user['full_name']}" if not is_patient else "👤  Patient Mode", 
+                 use_container_width=True, key="top_user_info"):
+        show_settings_dialog()
+
+with col_nav3:
+    if st.button("💬  Open MediBot Chat", use_container_width=True, type="primary", key="top_chat_full_btn"):
         st.session_state.show_chat_page = True
         st.rerun()
-    
-    st.markdown("---")
-    
-    st.markdown("### 📞 Quick Helpline")
-    st.markdown("""
-    - 🚨 **Emergency:** 1122
-    - 🚑 **Edhi:** 115
-    """)
-    
-    col_e, col_w = st.columns(2)
-    with col_e:
-        if st.button("📧 Email", use_container_width=True, key="sidebar_email"):
-            st.session_state.show_email_page = True
-            st.rerun()
-    with col_w:
-        if st.button("🌐 Website", use_container_width=True, key="sidebar_website"):
-            st.session_state.show_website_page = True
-            st.rerun()
-    
-    st.markdown("---")
-    
-    st.markdown("### 🛠️ Technology Stack")
-    st.markdown("""
-    - 🤖 **Federated Learning**
-    - 🔒 **Differential Privacy**
-    - 🧠 **Deep Neural Networks**
-    - 🔍 **Explainable AI (SHAP)**
-    - 💬 **AI Health Chatbot (Groq)**
-    - 📄 **PDF Report Generation**
-    - 📜 **Prediction History (SQLite)**
-    - 🔐 **User Authentication**
-    """)
 
 
 # ========================================
-# MAIN TABS (Role-based)
+# MAIN TABS
 # ========================================
 if is_patient:
     tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
-        "📈 Overview",
-        "🩸 Diabetes",
-        "❤️ Heart Disease",
-        "🧠 Stroke",
-        "🫘 Kidney",
-        "🏥 Gallery",
-        "📞 Contacts"
+        "📈 Overview", "🩸 Diabetes", "❤️ Heart Disease", "🧠 Stroke",
+        "🫘 Kidney", "🏥 Gallery", "📞 Contacts"
     ])
     tab8 = None
 else:
     tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
-        "📈 Overview",
-        "🩸 Diabetes",
-        "❤️ Heart Disease",
-        "🧠 Stroke",
-        "🫘 Kidney",
-        "🏥 Gallery",
-        "📞 Contacts",
-        "📜 History"
+        "📈 Overview", "🩸 Diabetes", "❤️ Heart Disease", "🧠 Stroke",
+        "🫘 Kidney", "🏥 Gallery", "📞 Contacts", "📜 History"
     ])
 
 
@@ -710,48 +601,16 @@ with tab1:
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.markdown("""
-        <div class="metric-card">
-            <div style="font-size: 2rem;">🩸</div>
-            <div class="metric-label">Diabetes</div>
-            <div class="metric-value">62.38%</div>
-            <div><span class="status-pill pill-success">Beats Baseline</span></div>
-            <div style="color: #808090; font-size: 0.75rem; margin-top: 8px;">100,244 patients</div>
-        </div>
-        """, unsafe_allow_html=True)
+        ui.animated_metric_card("🩸", "Diabetes", "62.38%", "100,244 patients", "Beats Baseline", "success")
     
     with col2:
-        st.markdown("""
-        <div class="metric-card">
-            <div style="font-size: 2rem;">❤️</div>
-            <div class="metric-label">Heart Disease</div>
-            <div class="metric-value">88.52%</div>
-            <div><span class="status-pill pill-warning">⭐ Best</span></div>
-            <div style="color: #808090; font-size: 0.75rem; margin-top: 8px;">303 patients</div>
-        </div>
-        """, unsafe_allow_html=True)
+        ui.animated_metric_card("❤️", "Heart Disease", "88.52%", "303 patients", "⭐ Best", "warning")
     
     with col3:
-        st.markdown("""
-        <div class="metric-card">
-            <div style="font-size: 2rem;">🧠</div>
-            <div class="metric-label">Stroke</div>
-            <div class="metric-value">72.90%</div>
-            <div><span class="status-pill pill-info">80% Recall</span></div>
-            <div style="color: #808090; font-size: 0.75rem; margin-top: 8px;">5,109 patients</div>
-        </div>
-        """, unsafe_allow_html=True)
+        ui.animated_metric_card("🧠", "Stroke", "72.90%", "5,109 patients", "80% Recall", "info")
     
     with col4:
-        st.markdown("""
-        <div class="metric-card">
-            <div style="font-size: 2rem;">🫘</div>
-            <div class="metric-label">Kidney</div>
-            <div class="metric-value">100%</div>
-            <div><span class="status-pill pill-success">🎯 Excellent</span></div>
-            <div style="color: #808090; font-size: 0.75rem; margin-top: 8px;">400 patients</div>
-        </div>
-        """, unsafe_allow_html=True)
+        ui.animated_metric_card("🫘", "Kidney", "100%", "400 patients", "🎯 Excellent", "success")
     
     st.markdown("<br>", unsafe_allow_html=True)
     
@@ -769,7 +628,8 @@ with tab1:
         st.dataframe(comparison, use_container_width=True, hide_index=True)
     
     with col_b:
-        st.bar_chart(comparison.set_index("Disease")["Accuracy (%)"], height=280)
+        fig = ui.plotly_model_comparison(comparison)
+        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False}, key="overview_chart")
     
     st.markdown("<br>", unsafe_allow_html=True)
     
@@ -779,11 +639,11 @@ with tab1:
     
     with col1:
         st.markdown("""
-        <div class="feature-card">
+        <div class="feature-card fade-in">
             <div class="feature-title">🔒 Privacy-Preserving</div>
             <div class="feature-desc">Patient data never leaves the hospital. Only encrypted model weights are shared.</div>
         </div>
-        <div class="feature-card">
+        <div class="feature-card fade-in">
             <div class="feature-title">🌐 Federated Learning</div>
             <div class="feature-desc">3 simulated hospitals collaboratively train a shared model without centralizing data.</div>
         </div>
@@ -791,11 +651,11 @@ with tab1:
     
     with col2:
         st.markdown("""
-        <div class="feature-card">
+        <div class="feature-card fade-in">
             <div class="feature-title">🧠 Explainable AI</div>
             <div class="feature-desc">SHAP-based analysis shows why each prediction was made — critical for medical trust.</div>
         </div>
-        <div class="feature-card">
+        <div class="feature-card fade-in">
             <div class="feature-title">💬 AI Health Chatbot</div>
             <div class="feature-desc">MediBot answers health questions with an intelligent, easy-to-use interface.</div>
         </div>
@@ -835,8 +695,11 @@ with tab2:
         emerg = st.slider("Previous Emergency Visits", 0, 76, 0, key="d_emerg")
     
     if st.button("🔮 Predict Diabetes Risk", type="primary", key="d_btn"):
-        with st.spinner("Loading model..."):
-            model = load_diabetes_model()
+        loading_placeholder = st.empty()
+        with loading_placeholder.container():
+            ui.prediction_loading_animation("Diabetes")
+        
+        model = load_diabetes_model()
         
         data = {
             'age': age, 'time_in_hospital': time_hosp,
@@ -846,58 +709,38 @@ with tab2:
         }
         
         prob = predict_with_model(model, data)
+        loading_placeholder.empty()
         
         if prob is not None:
             st.info(f"**Patient Summary:** Age {age} · {time_hosp} days in hospital · {meds} medications")
             pct = prob * 100
-            if prob > 0.5:
-                st.markdown(f"""
-                <div class="result-box result-high">
-                    <div class="result-title">🔴 High Risk of Readmission</div>
-                    <div class="result-prob">{pct:.1f}%</div>
-                    <div class="result-desc">This patient has a high probability of being readmitted. Close monitoring is recommended.</div>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                <div class="result-box result-low">
-                    <div class="result-title">🟢 Low Risk of Readmission</div>
-                    <div class="result-prob">{pct:.1f}%</div>
-                    <div class="result-desc">This patient has a low probability of readmission. Standard follow-up is sufficient.</div>
-                </div>
-                """, unsafe_allow_html=True)
+            
+            ui.result_card_with_animation(
+                prob > 0.5,
+                "High Risk of Readmission" if prob > 0.5 else "Low Risk of Readmission",
+                pct,
+                "This patient has a high probability of being readmitted. Close monitoring is recommended." if prob > 0.5 else "This patient has a low probability of readmission. Standard follow-up is sufficient."
+            )
             
             hist.save_prediction(
                 "Diabetes", prob,
                 "High Risk" if prob > 0.5 else "Low Risk",
-                f"Age: {age}, Time: {time_hosp}d, Meds: {meds}, Lab: {lab}, Diag: {diag}"
+                f"Age: {age}, Time: {time_hosp}d, Meds: {meds}, Lab: {lab}, Diag: {diag}",
+                user_email=user_email
             )
             
             pdf_bytes = generate_medical_report(
                 "Diabetes",
-                {
-                    "Age": age,
-                    "Time in Hospital (days)": time_hosp,
-                    "Number of Medications": meds,
-                    "Lab Procedures": lab,
-                    "Number of Diagnoses": diag,
-                    "Procedures": proc,
-                    "Previous Inpatient Visits": inpat,
-                    "Previous Emergency Visits": emerg,
-                },
-                {
-                    "probability": prob,
-                    "is_high_risk": prob > 0.5,
-                    "summary": f"Patient has {pct:.1f}% probability of readmission.",
-                }
+                {"Age": age, "Time in Hospital (days)": time_hosp, "Number of Medications": meds,
+                 "Lab Procedures": lab, "Number of Diagnoses": diag, "Procedures": proc,
+                 "Previous Inpatient Visits": inpat, "Previous Emergency Visits": emerg},
+                {"probability": prob, "is_high_risk": prob > 0.5,
+                 "summary": f"Patient has {pct:.1f}% probability of readmission."}
             )
             st.download_button(
-                label="📄  Download PDF Report",
-                data=pdf_bytes,
+                label="📄  Download PDF Report", data=pdf_bytes,
                 file_name=f"MediFederate_Diabetes_Report_{age}y_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                mime="application/pdf",
-                use_container_width=True,
-                key="d_download_btn"
+                mime="application/pdf", use_container_width=True, key="d_download_btn"
             )
         else:
             st.error("⚠️ Diabetes model not loaded.")
@@ -938,8 +781,11 @@ with tab3:
         thal = st.selectbox("Thalassemia", [1, 2, 3], key="h_thal")
     
     if st.button("🔮 Predict Heart Disease", type="primary", key="h_btn"):
-        with st.spinner("Loading model..."):
-            model = load_heart_model()
+        loading_placeholder = st.empty()
+        with loading_placeholder.container():
+            ui.prediction_loading_animation("Heart Disease")
+        
+        model = load_heart_model()
         
         data = {
             'age': age_h, 'sex': 1.0 if sex_h == "Male" else 0.0,
@@ -951,63 +797,41 @@ with tab3:
         }
         
         prob = predict_with_model(model, data)
+        loading_placeholder.empty()
         
         if prob is not None:
             st.info(f"**Patient Summary:** Age {age_h} · {sex_h} · BP {trestbps} · Chol {chol}")
             pct = prob * 100
-            if prob > 0.5:
-                st.markdown(f"""
-                <div class="result-box result-high">
-                    <div class="result-title">🔴 High Risk of Heart Disease</div>
-                    <div class="result-prob">{pct:.1f}%</div>
-                    <div class="result-desc">This patient shows signs of heart disease. Further cardiac evaluation is recommended.</div>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                <div class="result-box result-low">
-                    <div class="result-title">🟢 Low Risk of Heart Disease</div>
-                    <div class="result-prob">{pct:.1f}%</div>
-                    <div class="result-desc">This patient shows low risk for heart disease. Routine checkup is sufficient.</div>
-                </div>
-                """, unsafe_allow_html=True)
+            
+            ui.result_card_with_animation(
+                prob > 0.5,
+                "High Risk of Heart Disease" if prob > 0.5 else "Low Risk of Heart Disease",
+                pct,
+                "This patient shows signs of heart disease. Further cardiac evaluation is recommended." if prob > 0.5 else "This patient shows low risk for heart disease. Routine checkup is sufficient."
+            )
             
             hist.save_prediction(
                 "Heart Disease", prob,
                 "High Risk" if prob > 0.5 else "Low Risk",
-                f"Age: {age_h}, {sex_h}, BP: {trestbps}, Chol: {chol}, MaxHR: {thalach}"
+                f"Age: {age_h}, {sex_h}, BP: {trestbps}, Chol: {chol}, MaxHR: {thalach}",
+                user_email=user_email
             )
             
             pdf_bytes = generate_medical_report(
                 "Heart Disease",
-                {
-                    "Age": age_h,
-                    "Gender": sex_h,
-                    "Chest Pain Type": cp_h,
-                    "Resting BP (mm Hg)": trestbps,
-                    "Cholesterol (mg/dl)": chol,
-                    "Fasting Blood Sugar > 120": fbs,
-                    "Resting ECG": restecg,
-                    "Max Heart Rate": thalach,
-                    "Exercise Induced Angina": exang,
-                    "ST Depression": oldpeak,
-                    "Slope": slope,
-                    "Major Vessels": ca,
-                    "Thalassemia": thal,
-                },
-                {
-                    "probability": prob,
-                    "is_high_risk": prob > 0.5,
-                    "summary": f"Patient has {pct:.1f}% probability of heart disease.",
-                }
+                {"Age": age_h, "Gender": sex_h, "Chest Pain Type": cp_h,
+                 "Resting BP (mm Hg)": trestbps, "Cholesterol (mg/dl)": chol,
+                 "Fasting Blood Sugar > 120": fbs, "Resting ECG": restecg,
+                 "Max Heart Rate": thalach, "Exercise Induced Angina": exang,
+                 "ST Depression": oldpeak, "Slope": slope,
+                 "Major Vessels": ca, "Thalassemia": thal},
+                {"probability": prob, "is_high_risk": prob > 0.5,
+                 "summary": f"Patient has {pct:.1f}% probability of heart disease."}
             )
             st.download_button(
-                label="📄  Download PDF Report",
-                data=pdf_bytes,
+                label="📄  Download PDF Report", data=pdf_bytes,
                 file_name=f"MediFederate_Heart_Report_{age_h}y_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                mime="application/pdf",
-                use_container_width=True,
-                key="h_download_btn"
+                mime="application/pdf", use_container_width=True, key="h_download_btn"
             )
         else:
             st.error("⚠️ Heart model not loaded.")
@@ -1045,8 +869,11 @@ with tab4:
         smoking = st.selectbox("Smoking Status", ["never smoked", "formerly smoked", "smokes", "Unknown"], key="s_smoke")
     
     if st.button("🔮 Predict Stroke Risk", type="primary", key="s_btn"):
-        with st.spinner("Loading model..."):
-            model = load_stroke_model()
+        loading_placeholder = st.empty()
+        with loading_placeholder.container():
+            ui.prediction_loading_animation("Stroke")
+        
+        model = load_stroke_model()
         
         data = {
             'gender': 1.0 if gender_s == "Male" else 0.0,
@@ -1064,60 +891,39 @@ with tab4:
             data[f'work_type_{wt}'] = 1.0 if work == wt else 0.0
         
         prob = predict_with_model(model, data)
+        loading_placeholder.empty()
         
         if prob is not None:
             st.info(f"**Patient Summary:** Age {age_s} · {gender_s} · Glucose {glucose} · BMI {bmi}")
             pct = prob * 100
-            if prob > 0.5:
-                st.markdown(f"""
-                <div class="result-box result-high">
-                    <div class="result-title">🔴 High Risk of Stroke</div>
-                    <div class="result-prob">{pct:.1f}%</div>
-                    <div class="result-desc">This patient has a high risk of stroke. Immediate medical consultation is recommended.</div>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                <div class="result-box result-low">
-                    <div class="result-title">🟢 Low Risk of Stroke</div>
-                    <div class="result-prob">{pct:.1f}%</div>
-                    <div class="result-desc">This patient has a low risk of stroke. Maintain a healthy lifestyle.</div>
-                </div>
-                """, unsafe_allow_html=True)
+            
+            ui.result_card_with_animation(
+                prob > 0.5,
+                "High Risk of Stroke" if prob > 0.5 else "Low Risk of Stroke",
+                pct,
+                "This patient has a high risk of stroke. Immediate medical consultation is recommended." if prob > 0.5 else "This patient has a low risk of stroke. Maintain a healthy lifestyle."
+            )
             
             hist.save_prediction(
                 "Stroke", prob,
                 "High Risk" if prob > 0.5 else "Low Risk",
-                f"Age: {age_s}, {gender_s}, Glucose: {glucose}, BMI: {bmi}, Smoking: {smoking}"
+                f"Age: {age_s}, {gender_s}, Glucose: {glucose}, BMI: {bmi}, Smoking: {smoking}",
+                user_email=user_email
             )
             
             pdf_bytes = generate_medical_report(
                 "Stroke",
-                {
-                    "Age": age_s,
-                    "Gender": gender_s,
-                    "Hypertension": hyp,
-                    "Heart Disease": heart,
-                    "Ever Married": married,
-                    "Average Glucose Level": glucose,
-                    "BMI": bmi,
-                    "Work Type": work,
-                    "Residence": residence,
-                    "Smoking Status": smoking,
-                },
-                {
-                    "probability": prob,
-                    "is_high_risk": prob > 0.5,
-                    "summary": f"Patient has {pct:.1f}% probability of stroke.",
-                }
+                {"Age": age_s, "Gender": gender_s, "Hypertension": hyp,
+                 "Heart Disease": heart, "Ever Married": married,
+                 "Average Glucose Level": glucose, "BMI": bmi,
+                 "Work Type": work, "Residence": residence, "Smoking Status": smoking},
+                {"probability": prob, "is_high_risk": prob > 0.5,
+                 "summary": f"Patient has {pct:.1f}% probability of stroke."}
             )
             st.download_button(
-                label="📄  Download PDF Report",
-                data=pdf_bytes,
+                label="📄  Download PDF Report", data=pdf_bytes,
                 file_name=f"MediFederate_Stroke_Report_{age_s}y_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                mime="application/pdf",
-                use_container_width=True,
-                key="s_download_btn"
+                mime="application/pdf", use_container_width=True, key="s_download_btn"
             )
         else:
             st.error("⚠️ Stroke model not loaded.")
@@ -1165,91 +971,61 @@ with tab5:
         ane_k = st.selectbox("Anemia", ["No", "Yes"], key="k_ane")
     
     if st.button("🔮 Predict Kidney Disease", type="primary", key="k_btn"):
-        with st.spinner("Loading model..."):
-            model = load_kidney_model()
+        loading_placeholder = st.empty()
+        with loading_placeholder.container():
+            ui.prediction_loading_animation("Kidney Disease")
+        
+        model = load_kidney_model()
         
         data = {
-            'age': float(age_k),
-            'bp': float(bp_k),
-            'sg': float(sg_k),
-            'al': float(al_k),
-            'su': float(su_k),
-            'bgr': float(bgr_k),
-            'bu': float(bu_k),
-            'sc': float(sc_k),
-            'sod': float(sod_k),
-            'pot': float(pot_k),
-            'hemo': float(hemo_k),
-            'pcv': float(pcv_k),
-            'wc': float(wc_k),
-            'rc': float(rc_k),
+            'age': float(age_k), 'bp': float(bp_k), 'sg': float(sg_k),
+            'al': float(al_k), 'su': float(su_k), 'bgr': float(bgr_k),
+            'bu': float(bu_k), 'sc': float(sc_k), 'sod': float(sod_k),
+            'pot': float(pot_k), 'hemo': float(hemo_k), 'pcv': float(pcv_k),
+            'wc': float(wc_k), 'rc': float(rc_k),
             'htn': 1.0 if htn_k == "Yes" else 0.0,
             'dm': 1.0 if dm_k == "Yes" else 0.0,
             'cad': 1.0 if cad_k == "Yes" else 0.0,
             'appet': 1.0 if appet_k == "Good" else 0.0,
             'pe': 1.0 if pe_k == "Yes" else 0.0,
             'ane': 1.0 if ane_k == "Yes" else 0.0,
-            'rbc': 1.0,
-            'pc': 1.0,
-            'pcc': 0.0,
-            'ba': 0.0,
+            'rbc': 1.0, 'pc': 1.0, 'pcc': 0.0, 'ba': 0.0,
         }
         
         prob = predict_with_model(model, data)
+        loading_placeholder.empty()
         
         if prob is not None:
             st.info(f"**Patient Summary:** Age {age_k} · BP {bp_k} · Hemoglobin {hemo_k} · Creatinine {sc_k}")
             pct = prob * 100
-            if prob > 0.5:
-                st.markdown(f"""
-                <div class="result-box result-high">
-                    <div class="result-title">🔴 High Risk of Kidney Disease</div>
-                    <div class="result-prob">{pct:.1f}%</div>
-                    <div class="result-desc">This patient shows signs of kidney disease. Immediate nephrology consultation is recommended.</div>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                <div class="result-box result-low">
-                    <div class="result-title">🟢 Low Risk of Kidney Disease</div>
-                    <div class="result-prob">{pct:.1f}%</div>
-                    <div class="result-desc">This patient shows low risk for kidney disease. Routine checkup is sufficient.</div>
-                </div>
-                """, unsafe_allow_html=True)
+            
+            ui.result_card_with_animation(
+                prob > 0.5,
+                "High Risk of Kidney Disease" if prob > 0.5 else "Low Risk of Kidney Disease",
+                pct,
+                "This patient shows signs of kidney disease. Immediate nephrology consultation is recommended." if prob > 0.5 else "This patient shows low risk for kidney disease. Routine checkup is sufficient."
+            )
             
             hist.save_prediction(
                 "Kidney Disease", prob,
                 "High Risk" if prob > 0.5 else "Low Risk",
-                f"Age: {age_k}, BP: {bp_k}, Hemoglobin: {hemo_k}, Creatinine: {sc_k}"
+                f"Age: {age_k}, BP: {bp_k}, Hemoglobin: {hemo_k}, Creatinine: {sc_k}",
+                user_email=user_email
             )
             
             pdf_bytes = generate_medical_report(
                 "Kidney Disease",
-                {
-                    "Age": age_k,
-                    "Blood Pressure": bp_k,
-                    "Hemoglobin": hemo_k,
-                    "Serum Creatinine": sc_k,
-                    "Blood Urea": bu_k,
-                    "Sodium": sod_k,
-                    "Potassium": pot_k,
-                    "Hypertension": htn_k,
-                    "Diabetes": dm_k,
-                    "Anemia": ane_k,
-                },
-                {
-                    "probability": prob,
-                    "is_high_risk": prob > 0.5,
-                    "summary": f"Patient has {pct:.1f}% probability of kidney disease.",
-                }
+                {"Age": age_k, "Blood Pressure": bp_k, "Hemoglobin": hemo_k,
+                 "Serum Creatinine": sc_k, "Blood Urea": bu_k,
+                 "Sodium": sod_k, "Potassium": pot_k,
+                 "Hypertension": htn_k, "Diabetes": dm_k, "Anemia": ane_k},
+                {"probability": prob, "is_high_risk": prob > 0.5,
+                 "summary": f"Patient has {pct:.1f}% probability of kidney disease."}
             )
             st.download_button(
-                label="📄  Download PDF Report",
-                data=pdf_bytes,
+                label="📄  Download PDF Report", data=pdf_bytes,
                 file_name=f"MediFederate_Kidney_Report_{age_k}y_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                mime="application/pdf",
-                use_container_width=True,
-                key="k_download_btn"
+                mime="application/pdf", use_container_width=True, key="k_download_btn"
             )
         else:
             st.error("⚠️ Kidney model not loaded.")
@@ -1260,23 +1036,20 @@ with tab5:
 # ========================================
 with tab6:
     st.markdown('<div class="section-header">🏥 Medical Knowledge Gallery</div>', unsafe_allow_html=True)
-    st.markdown("""
-    Explore important health conditions, their symptoms, and prevention tips. 
-    Click on any card to learn more via **MediBot** 💬
-    """)
+    st.markdown("Explore important health conditions, their symptoms, and prevention tips.")
     
     gallery_items = [
-        {"category": "CARDIOLOGY", "title": "Blood Pressure Monitoring", "desc": "High BP is a silent killer. Get checked regularly — normal is 120/80 mm Hg. Reduce salt, exercise daily, manage stress.", "image": "https://images.unsplash.com/photo-1579154204601-01588f351e67?w=800&auto=format&fit=crop", "emoji": "💓", "query": "My blood pressure is high, what should I do?"},
-        {"category": "CARDIOLOGY", "title": "Heart Health", "desc": "Cardiovascular disease is the #1 cause of death globally. Watch cholesterol, avoid smoking, and stay active.", "image": "https://images.unsplash.com/photo-1628348070889-cb656235b4eb?w=800&auto=format&fit=crop", "emoji": "❤️", "query": "I have chest pain, what should I do?"},
-        {"category": "ENDOCRINOLOGY", "title": "Diabetes & Blood Sugar", "desc": "Over 537M adults live with diabetes. Watch for excessive thirst, frequent urination, and fatigue. Monitor sugar levels regularly.", "image": "https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=800&auto=format&fit=crop", "emoji": "🩸", "query": "My sugar level is 200, what should I do?"},
-        {"category": "NEPHROLOGY", "title": "Kidney Health", "desc": "Kidneys filter your blood. Watch for swelling, fatigue, and changes in urination. Stay hydrated and control BP.", "image": "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&auto=format&fit=crop", "emoji": "🫘", "query": "How can I keep my kidneys healthy?"},
-        {"category": "NEUROLOGY", "title": "Stroke Awareness", "desc": "Remember FAST: Face drooping, Arm weakness, Speech difficulty, Time to call 1122. Every minute counts!", "image": "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=800&auto=format&fit=crop", "emoji": "🧠", "query": "Tell me about stroke symptoms"},
-        {"category": "GENERAL HEALTH", "title": "Fever & Infections", "desc": "Fever is the body's defense against infection. Stay hydrated, rest well, and use paracetamol. Seek help if fever lasts 3+ days.", "image": "https://images.unsplash.com/photo-1584362917165-526a968579e8?w=800&auto=format&fit=crop", "emoji": "🌡️", "query": "I have fever, what should I do?"},
-        {"category": "GASTROENTEROLOGY", "title": "Stomach & Digestion", "desc": "Avoid spicy, oily food. Eat smaller meals. Manage stress. If pain persists over 24 hours, see a doctor.", "image": "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=800&auto=format&fit=crop", "emoji": "🤢", "query": "I have stomach pain, what should I do?"},
-        {"category": "HEMATOLOGY", "title": "Blood Health", "desc": "Regular blood tests help detect anemia, infections, and other conditions early. Get checked every 6 months.", "image": "https://images.unsplash.com/photo-1631815589968-fdb09a223b1e?w=800&auto=format&fit=crop", "emoji": "🩸", "query": "I am feeling weakness, what should I do?"},
-        {"category": "PHARMACOLOGY", "title": "Medication Safety", "desc": "Never self-medicate. Take antibiotics only when prescribed. Complete the full course. Store medicines properly.", "image": "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800&auto=format&fit=crop", "emoji": "💊", "query": "How should I take my medicines?"},
-        {"category": "PREVENTIVE CARE", "title": "Regular Checkups", "desc": "Annual health checkups catch problems early. BP, sugar, cholesterol, and full-body screening every year.", "image": "https://images.unsplash.com/photo-1584982751601-97dcc096659c?w=800&auto=format&fit=crop", "emoji": "🩺", "query": "How often should I get a health checkup?"},
-        {"category": "EMERGENCY", "title": "Emergency Response", "desc": "Save these numbers: Rescue 1122, Edhi 115, Police 15, Chhipa 1020. In emergency, stay calm and call for help.", "image": "https://images.unsplash.com/photo-1587745416684-47953f16f02f?w=800&auto=format&fit=crop", "emoji": "🚨", "query": "What is the emergency number in Pakistan?"},
+        {"category": "CARDIOLOGY", "title": "Blood Pressure Monitoring", "desc": "High BP is a silent killer. Get checked regularly — normal is 120/80 mm Hg.", "image": "https://images.unsplash.com/photo-1579154204601-01588f351e67?w=800&auto=format&fit=crop", "emoji": "💓", "query": "My blood pressure is high, what should I do?"},
+        {"category": "CARDIOLOGY", "title": "Heart Health", "desc": "Cardiovascular disease is the #1 cause of death globally.", "image": "https://images.unsplash.com/photo-1628348070889-cb656235b4eb?w=800&auto=format&fit=crop", "emoji": "❤️", "query": "I have chest pain, what should I do?"},
+        {"category": "ENDOCRINOLOGY", "title": "Diabetes & Blood Sugar", "desc": "Over 537M adults live with diabetes. Monitor sugar regularly.", "image": "https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=800&auto=format&fit=crop", "emoji": "🩸", "query": "My sugar level is 200, what should I do?"},
+        {"category": "NEPHROLOGY", "title": "Kidney Health", "desc": "Kidneys filter your blood. Stay hydrated and control BP.", "image": "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&auto=format&fit=crop", "emoji": "🫘", "query": "How can I keep my kidneys healthy?"},
+        {"category": "NEUROLOGY", "title": "Stroke Awareness", "desc": "Remember FAST: Face, Arm, Speech, Time. Every minute counts!", "image": "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=800&auto=format&fit=crop", "emoji": "🧠", "query": "Tell me about stroke symptoms"},
+        {"category": "GENERAL HEALTH", "title": "Fever & Infections", "desc": "Fever is the body's defense against infection.", "image": "https://images.unsplash.com/photo-1584362917165-526a968579e8?w=800&auto=format&fit=crop", "emoji": "🌡️", "query": "I have fever, what should I do?"},
+        {"category": "GASTROENTEROLOGY", "title": "Stomach & Digestion", "desc": "Avoid spicy, oily food. Eat smaller meals.", "image": "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=800&auto=format&fit=crop", "emoji": "🤢", "query": "I have stomach pain, what should I do?"},
+        {"category": "HEMATOLOGY", "title": "Blood Health", "desc": "Regular blood tests help detect conditions early.", "image": "https://images.unsplash.com/photo-1631815589968-fdb09a223b1e?w=800&auto=format&fit=crop", "emoji": "🩸", "query": "I am feeling weakness, what should I do?"},
+        {"category": "PHARMACOLOGY", "title": "Medication Safety", "desc": "Never self-medicate. Take antibiotics only when prescribed.", "image": "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800&auto=format&fit=crop", "emoji": "💊", "query": "How should I take my medicines?"},
+        {"category": "PREVENTIVE CARE", "title": "Regular Checkups", "desc": "Annual health checkups catch problems early.", "image": "https://images.unsplash.com/photo-1584982751601-97dcc096659c?w=800&auto=format&fit=crop", "emoji": "🩺", "query": "How often should I get a health checkup?"},
+        {"category": "EMERGENCY", "title": "Emergency Response", "desc": "Save these numbers: Rescue 1122, Edhi 115, Police 15, Chhipa 1020.", "image": "https://images.unsplash.com/photo-1587745416684-47953f16f02f?w=800&auto=format&fit=crop", "emoji": "🚨", "query": "What is the emergency number in Pakistan?"},
     ]
     
     for i in range(0, len(gallery_items), 2):
@@ -1285,7 +1058,7 @@ with tab6:
         with col1:
             item = gallery_items[i]
             st.markdown(f"""
-            <div class="gallery-card">
+            <div class="gallery-card fade-in">
                 <img src="{item['image']}" class="gallery-image" onerror="this.style.display='none'"/>
                 <div class="gallery-body">
                     <span class="gallery-category">{item['category']}</span>
@@ -1304,7 +1077,7 @@ with tab6:
             if i + 1 < len(gallery_items):
                 item = gallery_items[i + 1]
                 st.markdown(f"""
-                <div class="gallery-card">
+                <div class="gallery-card fade-in">
                     <img src="{item['image']}" class="gallery-image" onerror="this.style.display='none'"/>
                     <div class="gallery-body">
                         <span class="gallery-category">{item['category']}</span>
@@ -1318,19 +1091,13 @@ with tab6:
                     st.session_state.show_chat_page = True
                     st.session_state.pending_chat_query = item['query']
                     st.rerun()
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.info("💡 **Tip:** Har card ke neeche 'Ask MediBot' button dabayein — AI foran us topic par tafseel se jawab dega!")
 
 
 # ========================================
-# TAB 7: CONTACTS & HELPLINE
+# TAB 7: CONTACTS
 # ========================================
 with tab7:
     st.markdown('<div class="section-header">📞 Contacts & Helpline</div>', unsafe_allow_html=True)
-    st.markdown("""
-    Emergency numbers, hospital contacts, and online support — sab kuch ek jagah.
-    """)
     
     st.markdown("##### 🚨 Emergency Numbers")
     
@@ -1338,7 +1105,7 @@ with tab7:
     
     with col1:
         st.markdown("""
-        <div class="contact-card">
+        <div class="contact-card fade-in">
             <div class="emergency-badge">Emergency</div>
             <div class="contact-icon">🚨</div>
             <div class="contact-title">Rescue</div>
@@ -1348,7 +1115,7 @@ with tab7:
     
     with col2:
         st.markdown("""
-        <div class="contact-card">
+        <div class="contact-card fade-in">
             <div class="emergency-badge">Ambulance</div>
             <div class="contact-icon">🚑</div>
             <div class="contact-title">Edhi Ambulance</div>
@@ -1358,7 +1125,7 @@ with tab7:
     
     with col3:
         st.markdown("""
-        <div class="contact-card">
+        <div class="contact-card fade-in">
             <div class="emergency-badge">Police</div>
             <div class="contact-icon">👮</div>
             <div class="contact-title">Police</div>
@@ -1368,7 +1135,7 @@ with tab7:
     
     with col4:
         st.markdown("""
-        <div class="contact-card">
+        <div class="contact-card fade-in">
             <div class="emergency-badge">Ambulance</div>
             <div class="contact-icon">🚑</div>
             <div class="contact-title">Chhipa</div>
@@ -1377,7 +1144,6 @@ with tab7:
         """, unsafe_allow_html=True)
     
     st.markdown("<br>", unsafe_allow_html=True)
-    
     st.markdown("##### 🏥 Major Hospitals in Pakistan")
     
     col1, col2 = st.columns(2)
@@ -1387,35 +1153,17 @@ with tab7:
         <div class="contact-card">
             <div class="contact-icon">🏥</div>
             <div class="contact-title">Aga Khan University Hospital</div>
-            <div class="contact-info">
-                📍 Karachi<br>
-                📞 +92-21-111-911-911<br>
-                🌐 hospitals.aku.edu
-            </div>
+            <div class="contact-info">📍 Karachi<br>📞 +92-21-111-911-911<br>🌐 hospitals.aku.edu</div>
         </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
         <div class="contact-card">
             <div class="contact-icon">🏥</div>
             <div class="contact-title">Mayo Hospital</div>
-            <div class="contact-info">
-                📍 Lahore<br>
-                📞 +92-42-99211112<br>
-                🌐 mayo-hospital.gov.pk
-            </div>
+            <div class="contact-info">📍 Lahore<br>📞 +92-42-99211112<br>🌐 mayo-hospital.gov.pk</div>
         </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
         <div class="contact-card">
             <div class="contact-icon">🏥</div>
             <div class="contact-title">PIMS Islamabad</div>
-            <div class="contact-info">
-                📍 Islamabad<br>
-                📞 +92-51-9261170<br>
-                🌐 pims.gov.pk
-            </div>
+            <div class="contact-info">📍 Islamabad<br>📞 +92-51-9261170<br>🌐 pims.gov.pk</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -1424,40 +1172,21 @@ with tab7:
         <div class="contact-card">
             <div class="contact-icon">🏥</div>
             <div class="contact-title">Shaukat Khanum Memorial Hospital</div>
-            <div class="contact-info">
-                📍 Lahore & Peshawar<br>
-                📞 +92-42-35905000<br>
-                🌐 shaukatkhanum.org.pk
-            </div>
+            <div class="contact-info">📍 Lahore & Peshawar<br>📞 +92-42-35905000<br>🌐 shaukatkhanum.org.pk</div>
         </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
         <div class="contact-card">
             <div class="contact-icon">🏥</div>
             <div class="contact-title">Jinnah Postgraduate Medical Centre</div>
-            <div class="contact-info">
-                📍 Karachi<br>
-                📞 +92-21-99201300<br>
-                🌐 jpmc.edu.pk
-            </div>
+            <div class="contact-info">📍 Karachi<br>📞 +92-21-99201300<br>🌐 jpmc.edu.pk</div>
         </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
         <div class="contact-card">
             <div class="contact-icon">🏥</div>
             <div class="contact-title">Services Hospital Lahore</div>
-            <div class="contact-info">
-                📍 Lahore<br>
-                📞 +92-42-99203402<br>
-                🌐 serviceshospital.punjab.gov.pk
-            </div>
+            <div class="contact-info">📍 Lahore<br>📞 +92-42-99203402<br>🌐 serviceshospital.punjab.gov.pk</div>
         </div>
         """, unsafe_allow_html=True)
     
     st.markdown("<br>", unsafe_allow_html=True)
-    
     st.markdown("##### 💬 MediFederate Support")
     
     col1, col2, col3 = st.columns(3)
@@ -1490,7 +1219,6 @@ with tab7:
         """, unsafe_allow_html=True)
     
     st.markdown("<br>", unsafe_allow_html=True)
-    
     st.markdown("##### 🌐 Online Health Resources")
     st.markdown("""
     - **WHO Pakistan:** [www.emro.who.int/countries/pak](https://www.emro.who.int/countries/pak)
@@ -1505,50 +1233,28 @@ with tab7:
 # ========================================
 if tab8 is not None:
     with tab8:
-        st.markdown('<div class="section-header">📜 Prediction History</div>', unsafe_allow_html=True)
-        st.markdown("""
-        Saari AI predictions yahan save hain. Aap filter, export, aur analytics dekh sakte hain.
+        st.markdown('<div class="section-header">📜 My Prediction History</div>', unsafe_allow_html=True)
+        st.markdown(f"""
+        Showing predictions for: **{current_user['full_name']}** ({current_user['email']})
+        
+        *Yeh aapki apni predictions hain — baaki doctors ki history aapko nazar nahi aayegi.*
         """)
         
-        stats = hist.get_statistics()
+        stats = hist.get_statistics(user_email=user_email)
         
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div style="font-size: 2rem;">📊</div>
-                <div class="metric-label">Total Predictions</div>
-                <div class="metric-value">{stats['total']}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            ui.animated_metric_card("📊", "My Predictions", str(stats['total']))
         
         with col2:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div style="font-size: 2rem;">🔴</div>
-                <div class="metric-label">High Risk</div>
-                <div class="metric-value" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">{stats['high_risk']}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            ui.animated_metric_card("🔴", "High Risk", str(stats['high_risk']))
         
         with col3:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div style="font-size: 2rem;">🟢</div>
-                <div class="metric-label">Low Risk</div>
-                <div class="metric-value" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">{stats['low_risk']}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            ui.animated_metric_card("🟢", "Low Risk", str(stats['low_risk']))
         
         with col4:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div style="font-size: 2rem;">🏥</div>
-                <div class="metric-label">Diseases Covered</div>
-                <div class="metric-value">4</div>
-            </div>
-            """, unsafe_allow_html=True)
+            ui.animated_metric_card("🏥", "Diseases", "4")
         
         st.markdown("<br>", unsafe_allow_html=True)
         
@@ -1563,55 +1269,44 @@ if tab8 is not None:
         
         with col_f2:
             st.markdown("&nbsp;")
-            csv_data = hist.export_to_csv()
+            csv_data = hist.export_to_csv(user_email=user_email)
             st.download_button(
-                label="📥  Export to CSV",
-                data=csv_data,
-                file_name=f"MediFederate_History_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                mime="text/csv",
-                use_container_width=True,
-                key="hist_export"
+                label="📥  Export My History to CSV", data=csv_data,
+                file_name=f"My_Predictions_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                mime="text/csv", use_container_width=True, key="hist_export"
             )
         
         with col_f3:
             st.markdown("&nbsp;")
-            if st.button("🗑️  Clear All", use_container_width=True, key="hist_clear"):
-                hist.clear_all_predictions()
-                st.success("All history cleared!")
+            if st.button("🗑️  Clear My History", use_container_width=True, key="hist_clear"):
+                hist.clear_all_predictions(user_email=user_email)
+                st.success("Your history cleared!")
                 st.rerun()
         
         st.markdown("---")
-        
-        st.markdown("##### 📊 Analytics")
+        st.markdown("##### 📊 My Analytics")
         
         col_chart1, col_chart2 = st.columns(2)
         
         with col_chart1:
-            st.markdown("**Disease Distribution**")
-            disease_dist = hist.get_disease_distribution()
-            if not disease_dist.empty:
-                st.bar_chart(disease_dist.set_index('disease')['count'], height=250)
-            else:
-                st.info("No data yet")
+            disease_dist = hist.get_disease_distribution(user_email=user_email)
+            fig1 = ui.plotly_disease_donut(disease_dist, "My Disease Distribution")
+            st.plotly_chart(fig1, use_container_width=True, config={'displayModeBar': False}, key="hist_disease_chart")
         
         with col_chart2:
-            st.markdown("**Risk Distribution**")
-            risk_dist = hist.get_risk_distribution()
-            if not risk_dist.empty:
-                st.bar_chart(risk_dist.set_index('risk_level')['count'], height=250)
-            else:
-                st.info("No data yet")
+            risk_dist = hist.get_risk_distribution(user_email=user_email)
+            fig2 = ui.plotly_risk_bars(risk_dist, "My Risk Distribution")
+            st.plotly_chart(fig2, use_container_width=True, config={'displayModeBar': False}, key="hist_risk_chart")
         
         st.markdown("---")
+        st.markdown("##### 📋 My Predictions")
         
-        st.markdown("##### 📋 All Predictions")
-        
-        df = hist.get_all_predictions(disease_filter=disease_filter)
+        df = hist.get_all_predictions(disease_filter=disease_filter, user_email=user_email)
         
         if not df.empty:
-            display_df = df[['id', 'timestamp', 'disease', 'probability', 'risk_level']].copy()
+            cols_to_show = ['id', 'timestamp', 'disease', 'probability', 'risk_level']
+            display_df = df[cols_to_show].copy()
             display_df['probability'] = (display_df['probability'] * 100).round(1).astype(str) + '%'
-            display_df.columns = ['ID', 'Timestamp', 'Disease', 'Probability', 'Risk Level']
             
             st.dataframe(display_df, use_container_width=True, hide_index=True)
             
@@ -1620,8 +1315,7 @@ if tab8 is not None:
             
             selected_id = st.selectbox(
                 "Select Prediction ID to view details:",
-                df['id'].tolist(),
-                key="hist_detail"
+                df['id'].tolist(), key="hist_detail"
             )
             
             if selected_id:
@@ -1647,7 +1341,31 @@ if tab8 is not None:
                     st.success(f"Prediction #{selected_id} deleted!")
                     st.rerun()
         else:
-            st.info("📭 No predictions yet. Go to Diabetes, Heart, Kidney, or Stroke tab to make a prediction!")
+            st.info("📭 You haven't made any predictions yet. Go to Diabetes, Heart, Stroke, or Kidney tab to make your first prediction!")
+
+
+# ========================================
+# LEGAL LINKS FOOTER
+# ========================================
+st.markdown("---")
+st.markdown("<br>", unsafe_allow_html=True)
+
+col_l1, col_l2, col_l3 = st.columns(3)
+
+with col_l1:
+    if st.button("📋  Privacy Policy", use_container_width=True, key="footer_privacy"):
+        st.session_state.show_privacy_page = True
+        st.rerun()
+
+with col_l2:
+    if st.button("📜  Terms of Service", use_container_width=True, key="footer_terms"):
+        st.session_state.show_terms_page = True
+        st.rerun()
+
+with col_l3:
+    if st.button("📧  Contact Support", use_container_width=True, key="footer_contact"):
+        st.session_state.show_email_page = True
+        st.rerun()
 
 
 # ========================================

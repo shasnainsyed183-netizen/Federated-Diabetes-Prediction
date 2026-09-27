@@ -1,149 +1,213 @@
 """
 MediFederate Prediction History Database
-SQLite-based storage for all AI predictions
+SQLite-based storage with per-user filtering
 """
 
 import sqlite3
 import pandas as pd
 from datetime import datetime
-import os
 
 
 DB_PATH = 'predictions_history.db'
 
 
+def _get_connection():
+    conn = sqlite3.connect(DB_PATH, timeout=15)
+    conn.execute("PRAGMA journal_mode=WAL")
+    return conn
+
+
 def init_database():
-    """Create database and tables if not exists"""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS predictions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT NOT NULL,
-            disease TEXT NOT NULL,
-            probability REAL NOT NULL,
-            risk_level TEXT NOT NULL,
-            patient_data TEXT NOT NULL,
-            notes TEXT
-        )
-    ''')
-    
-    conn.commit()
-    conn.close()
+    """Create database and tables if not exists (with migration)"""
+    conn = _get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS predictions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL,
+                user_email TEXT,
+                disease TEXT NOT NULL,
+                probability REAL NOT NULL,
+                risk_level TEXT NOT NULL,
+                patient_data TEXT NOT NULL,
+                notes TEXT
+            )
+        ''')
+        
+        cursor.execute("PRAGMA table_info(predictions)")
+        columns = [row[1] for row in cursor.fetchall()]
+        if 'user_email' not in columns:
+            cursor.execute("ALTER TABLE predictions ADD COLUMN user_email TEXT")
+        
+        conn.commit()
+    finally:
+        conn.close()
 
 
-def save_prediction(disease, probability, risk_level, patient_data, notes=""):
+def save_prediction(disease, probability, risk_level, patient_data, notes="", user_email=None):
     """Save a single prediction to database"""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-        INSERT INTO predictions (timestamp, disease, probability, risk_level, patient_data, notes)
-        VALUES (?, ?, ?, ?, ?, ?)
-    ''', (
-        datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        disease,
-        float(probability),
-        risk_level,
-        str(patient_data),
-        notes
-    ))
-    
-    conn.commit()
-    prediction_id = cursor.lastrowid
-    conn.close()
-    
-    return prediction_id
+    conn = _get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO predictions (timestamp, user_email, disease, probability, risk_level, patient_data, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            user_email or 'guest@medifederate',
+            disease,
+            float(probability),
+            risk_level,
+            str(patient_data),
+            notes
+        ))
+        conn.commit()
+        return cursor.lastrowid
+    finally:
+        conn.close()
 
 
-def get_all_predictions(disease_filter=None, limit=500):
-    """Get all predictions from database"""
-    conn = sqlite3.connect(DB_PATH)
-    
-    if disease_filter and disease_filter != "All":
-        query = "SELECT * FROM predictions WHERE disease = ? ORDER BY id DESC LIMIT ?"
-        df = pd.read_sql_query(query, conn, params=(disease_filter, limit))
-    else:
-        query = "SELECT * FROM predictions ORDER BY id DESC LIMIT ?"
-        df = pd.read_sql_query(query, conn, params=(limit,))
-    
-    conn.close()
-    return df
+def get_all_predictions(disease_filter=None, limit=500, user_email=None):
+    """
+    Get predictions — optionally filtered by user_email
+    If user_email is None → returns all (admin mode)
+    """
+    conn = _get_connection()
+    try:
+        params = []
+        query = "SELECT * FROM predictions"
+        conditions = []
+        
+        if user_email:
+            conditions.append("user_email = ?")
+            params.append(user_email)
+        
+        if disease_filter and disease_filter != "All":
+            conditions.append("disease = ?")
+            params.append(disease_filter)
+        
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        
+        query += " ORDER BY id DESC LIMIT ?"
+        params.append(limit)
+        
+        df = pd.read_sql_query(query, conn, params=tuple(params))
+        return df
+    finally:
+        conn.close()
 
 
-def get_statistics():
-    """Get statistics for dashboard"""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
+def get_user_predictions(user_email, limit=10):
+    """Get predictions for a specific user"""
+    if not user_email:
+        return pd.DataFrame()
     
-    stats = {}
-    
-    cursor.execute("SELECT COUNT(*) FROM predictions")
-    stats['total'] = cursor.fetchone()[0]
-    
-    cursor.execute("SELECT COUNT(*) FROM predictions WHERE risk_level = 'High Risk'")
-    stats['high_risk'] = cursor.fetchone()[0]
-    
-    cursor.execute("SELECT COUNT(*) FROM predictions WHERE risk_level = 'Low Risk'")
-    stats['low_risk'] = cursor.fetchone()[0]
-    
-    cursor.execute("SELECT COUNT(*) FROM predictions WHERE disease = 'Diabetes'")
-    stats['diabetes'] = cursor.fetchone()[0]
-    
-    cursor.execute("SELECT COUNT(*) FROM predictions WHERE disease = 'Heart Disease'")
-    stats['heart'] = cursor.fetchone()[0]
-    
-    cursor.execute("SELECT COUNT(*) FROM predictions WHERE disease = 'Stroke'")
-    stats['stroke'] = cursor.fetchone()[0]
-    
-    conn.close()
-    return stats
+    conn = _get_connection()
+    try:
+        query = "SELECT * FROM predictions WHERE user_email = ? ORDER BY id DESC LIMIT ?"
+        return pd.read_sql_query(query, conn, params=(user_email, limit))
+    finally:
+        conn.close()
+
+
+def get_statistics(user_email=None):
+    """Get statistics — optionally user-specific"""
+    conn = _get_connection()
+    try:
+        cursor = conn.cursor()
+        stats = {}
+        
+        where = "WHERE user_email = ?" if user_email else ""
+        params = (user_email,) if user_email else ()
+        
+        cursor.execute(f"SELECT COUNT(*) FROM predictions {where}", params)
+        stats['total'] = cursor.fetchone()[0]
+        
+        cursor.execute(
+            f"SELECT COUNT(*) FROM predictions {where} {'AND' if where else 'WHERE'} risk_level = 'High Risk'",
+            params
+        )
+        stats['high_risk'] = cursor.fetchone()[0]
+        
+        cursor.execute(
+            f"SELECT COUNT(*) FROM predictions {where} {'AND' if where else 'WHERE'} risk_level = 'Low Risk'",
+            params
+        )
+        stats['low_risk'] = cursor.fetchone()[0]
+        
+        for disease in ['Diabetes', 'Heart Disease', 'Stroke', 'Kidney Disease']:
+            cursor.execute(
+                f"SELECT COUNT(*) FROM predictions {where} {'AND' if where else 'WHERE'} disease = ?",
+                params + (disease,)
+            )
+            stats[disease.lower().replace(' ', '_')] = cursor.fetchone()[0]
+        
+        return stats
+    finally:
+        conn.close()
 
 
 def delete_prediction(prediction_id):
-    """Delete a single prediction"""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM predictions WHERE id = ?", (prediction_id,))
-    conn.commit()
-    conn.close()
+    conn = _get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM predictions WHERE id = ?", (prediction_id,))
+        conn.commit()
+    finally:
+        conn.close()
 
 
-def clear_all_predictions():
-    """Delete all predictions"""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM predictions")
-    conn.commit()
-    conn.close()
+def clear_all_predictions(user_email=None):
+    """Clear all predictions — optionally user-specific"""
+    conn = _get_connection()
+    try:
+        cursor = conn.cursor()
+        if user_email:
+            cursor.execute("DELETE FROM predictions WHERE user_email = ?", (user_email,))
+        else:
+            cursor.execute("DELETE FROM predictions")
+        conn.commit()
+    finally:
+        conn.close()
 
 
-def export_to_csv():
-    """Export all predictions to CSV"""
-    df = get_all_predictions(limit=10000)
+def export_to_csv(user_email=None):
+    """Export predictions to CSV — optionally user-specific"""
+    df = get_all_predictions(user_email=user_email, limit=10000)
     return df.to_csv(index=False).encode('utf-8')
 
 
-def get_disease_distribution():
-    """Get count of predictions per disease"""
-    conn = sqlite3.connect(DB_PATH)
-    query = "SELECT disease, COUNT(*) as count FROM predictions GROUP BY disease"
-    df = pd.read_sql_query(query, conn)
-    conn.close()
-    return df
+def get_disease_distribution(user_email=None):
+    """Get count per disease — optionally user-specific"""
+    conn = _get_connection()
+    try:
+        if user_email:
+            query = "SELECT disease, COUNT(*) as count FROM predictions WHERE user_email = ? GROUP BY disease"
+            return pd.read_sql_query(query, conn, params=(user_email,))
+        else:
+            query = "SELECT disease, COUNT(*) as count FROM predictions GROUP BY disease"
+            return pd.read_sql_query(query, conn)
+    finally:
+        conn.close()
 
 
-def get_risk_distribution():
-    """Get count of high vs low risk"""
-    conn = sqlite3.connect(DB_PATH)
-    query = "SELECT risk_level, COUNT(*) as count FROM predictions GROUP BY risk_level"
-    df = pd.read_sql_query(query, conn)
-    conn.close()
-    return df
+def get_risk_distribution(user_email=None):
+    """Get risk distribution — optionally user-specific"""
+    conn = _get_connection()
+    try:
+        if user_email:
+            query = "SELECT risk_level, COUNT(*) as count FROM predictions WHERE user_email = ? GROUP BY risk_level"
+            return pd.read_sql_query(query, conn, params=(user_email,))
+        else:
+            query = "SELECT risk_level, COUNT(*) as count FROM predictions GROUP BY risk_level"
+            return pd.read_sql_query(query, conn)
+    finally:
+        conn.close()
 
 
-# Auto-initialize on import
+# Auto-initialize
 init_database()
 
 
@@ -153,33 +217,16 @@ init_database()
 if __name__ == "__main__":
     print("Testing History Database...")
     
-    # Save test predictions
-    save_prediction(
-        "Diabetes", 0.42, "Low Risk",
-        {"age": 55, "meds": 15, "time": 5}
-    )
-    save_prediction(
-        "Heart Disease", 0.81, "High Risk",
-        {"age": 65, "bp": 150, "chol": 280}
-    )
-    save_prediction(
-        "Stroke", 0.26, "Low Risk",
-        {"age": 45, "bmi": 24, "glucose": 95}
-    )
+    save_prediction("Diabetes", 0.42, "Low Risk", {"age": 55}, user_email="doc1@test.com")
+    save_prediction("Heart Disease", 0.81, "High Risk", {"age": 65}, user_email="doc1@test.com")
+    save_prediction("Kidney Disease", 0.30, "Low Risk", {"age": 45}, user_email="doc2@test.com")
     
-    print("\n✅ Test data saved!")
+    print(f"\nDoc1 predictions: {len(get_user_predictions('doc1@test.com'))}")
+    print(f"Doc2 predictions: {len(get_user_predictions('doc2@test.com'))}")
+    print(f"All predictions: {len(get_all_predictions(user_email=None))}")
     
-    # Get stats
-    stats = get_statistics()
-    print(f"\nStatistics:")
-    print(f"  Total predictions: {stats['total']}")
-    print(f"  High risk: {stats['high_risk']}")
-    print(f"  Low risk: {stats['low_risk']}")
-    print(f"  Diabetes: {stats['diabetes']}")
-    print(f"  Heart: {stats['heart']}")
-    print(f"  Stroke: {stats['stroke']}")
+    stats_doc1 = get_statistics(user_email="doc1@test.com")
+    print(f"\nDoc1 stats: Total={stats_doc1['total']}, High={stats_doc1['high_risk']}")
     
-    # Get all
-    df = get_all_predictions()
-    print(f"\nFirst few rows:")
-    print(df.head())
+    stats_all = get_statistics()
+    print(f"Global stats: Total={stats_all['total']}")

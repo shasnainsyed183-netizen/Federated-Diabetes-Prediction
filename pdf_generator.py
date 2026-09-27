@@ -16,7 +16,6 @@ from datetime import datetime
 import io
 
 
-# Brand colors
 PRIMARY_COLOR = colors.HexColor("#667eea")
 SECONDARY_COLOR = colors.HexColor("#764ba2")
 DANGER_COLOR = colors.HexColor("#ef4444")
@@ -30,7 +29,6 @@ def _header_footer(canvas, doc):
     canvas.saveState()
     width, height = A4
     
-    # Footer
     canvas.setFillColor(colors.HexColor("#808090"))
     canvas.setFont("Helvetica", 8)
     canvas.drawCentredString(width / 2, 0.6 * cm, 
@@ -39,7 +37,6 @@ def _header_footer(canvas, doc):
     canvas.drawString(1.5 * cm, 0.6 * cm, "Confidential Medical Report")
     canvas.drawRightString(width - 1.5 * cm, 0.6 * cm, "medi-federate.app")
     
-    # Header line
     canvas.setStrokeColor(PRIMARY_COLOR)
     canvas.setLineWidth(2)
     canvas.line(1.5 * cm, height - 1.5 * cm, width - 1.5 * cm, height - 1.5 * cm)
@@ -48,21 +45,7 @@ def _header_footer(canvas, doc):
 
 
 def generate_medical_report(disease_type, patient_data, prediction_result):
-    """
-    Generate a professional medical PDF report
-    
-    Args:
-        disease_type (str): "Diabetes", "Heart Disease", or "Stroke"
-        patient_data (dict): Patient input values
-        prediction_result (dict): {
-            'probability': float,
-            'is_high_risk': bool,
-            'summary': str
-        }
-    
-    Returns:
-        bytes: PDF file as bytes
-    """
+    """Generate a professional medical PDF report"""
     
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -76,56 +59,39 @@ def generate_medical_report(disease_type, patient_data, prediction_result):
     
     styles = getSampleStyleSheet()
     
-    # Custom styles
     title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=22,
-        textColor=PRIMARY_COLOR,
-        spaceAfter=6,
-        alignment=TA_CENTER,
-        fontName='Helvetica-Bold',
+        'CustomTitle', parent=styles['Heading1'],
+        fontSize=22, textColor=PRIMARY_COLOR, spaceAfter=6,
+        alignment=TA_CENTER, fontName='Helvetica-Bold',
     )
     
     subtitle_style = ParagraphStyle(
-        'CustomSubtitle',
-        parent=styles['Normal'],
-        fontSize=10,
-        textColor=colors.HexColor("#808090"),
-        alignment=TA_CENTER,
-        spaceAfter=20,
+        'CustomSubtitle', parent=styles['Normal'],
+        fontSize=10, textColor=colors.HexColor("#808090"),
+        alignment=TA_CENTER, spaceAfter=20,
     )
     
     section_style = ParagraphStyle(
-        'SectionHeader',
-        parent=styles['Heading2'],
-        fontSize=13,
-        textColor=PRIMARY_COLOR,
-        spaceBefore=14,
-        spaceAfter=8,
-        fontName='Helvetica-Bold',
+        'SectionHeader', parent=styles['Heading2'],
+        fontSize=13, textColor=PRIMARY_COLOR, spaceBefore=14,
+        spaceAfter=8, fontName='Helvetica-Bold',
     )
     
     body_style = ParagraphStyle(
-        'BodyText',
-        parent=styles['Normal'],
-        fontSize=10,
-        textColor=DARK_TEXT,
-        alignment=TA_JUSTIFY,
-        spaceAfter=6,
-        leading=14,
+        'BodyText', parent=styles['Normal'],
+        fontSize=10, textColor=DARK_TEXT, alignment=TA_JUSTIFY,
+        spaceAfter=6, leading=14,
     )
     
-    # ============ BUILD THE PDF ============
     story = []
     
-    # ===== Header / Title =====
+    # Header
     story.append(Spacer(1, 0.5 * cm))
     story.append(Paragraph("🏥 MediFederate", title_style))
     story.append(Paragraph("AI-Powered Medical Prediction Report", subtitle_style))
     story.append(HRFlowable(width="100%", thickness=2, color=PRIMARY_COLOR, spaceAfter=15))
     
-    # ===== Report Info Table =====
+    # Report Info
     report_id = f"MF-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
     info_data = [
         ["Report ID:", report_id, "Date:", datetime.now().strftime("%B %d, %Y")],
@@ -141,15 +107,13 @@ def generate_medical_report(disease_type, patient_data, prediction_result):
         ('TOPPADDING', (0, 0), (-1, -1), 6),
     ]))
     story.append(info_table)
-    
     story.append(Spacer(1, 0.5 * cm))
     
-    # ===== Prediction Result Box =====
+    # Prediction Result
     story.append(Paragraph("📊 AI Prediction Result", section_style))
     
     prob_pct = prediction_result['probability'] * 100
     is_high = prediction_result['is_high_risk']
-    
     result_color = DANGER_COLOR if is_high else SUCCESS_COLOR
     result_label = "HIGH RISK" if is_high else "LOW RISK"
     result_emoji = "🔴" if is_high else "🟢"
@@ -171,23 +135,20 @@ def generate_medical_report(disease_type, patient_data, prediction_result):
         ('ROUNDEDCORNERS', [8, 8, 8, 8]),
     ]))
     story.append(result_table)
-    
     story.append(Spacer(1, 0.3 * cm))
     story.append(Paragraph(prediction_result.get('summary', ''), body_style))
     
-    # ===== Patient Data Table =====
+    # Patient Data
     story.append(Paragraph("👤 Patient Details", section_style))
     
     patient_rows = [["Parameter", "Value", "Parameter", "Value"]]
     items = list(patient_data.items())
     
-    # Group by 2 per row
     for i in range(0, len(items), 2):
         row = []
         for j in range(2):
             if i + j < len(items):
                 key, val = items[i + j]
-                # Format key (camelCase to Words)
                 formatted_key = key.replace('_', ' ').title()
                 row.extend([formatted_key, str(val)])
             else:
@@ -210,7 +171,7 @@ def generate_medical_report(disease_type, patient_data, prediction_result):
     ]))
     story.append(patient_table)
     
-    # ===== Recommendations =====
+    # Recommendations
     story.append(Paragraph("💡 Recommendations", section_style))
     
     if is_high:
@@ -221,17 +182,14 @@ def generate_medical_report(disease_type, patient_data, prediction_result):
     for rec in recommendations:
         story.append(Paragraph(f"• {rec}", body_style))
     
-    # ===== Disclaimer =====
+    # Disclaimer
     story.append(Spacer(1, 0.5 * cm))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#d0d0e0")))
     story.append(Spacer(1, 0.3 * cm))
     
     disclaimer_style = ParagraphStyle(
-        'Disclaimer',
-        parent=body_style,
-        fontSize=8,
-        textColor=colors.HexColor("#808090"),
-        alignment=TA_JUSTIFY,
+        'Disclaimer', parent=body_style, fontSize=8,
+        textColor=colors.HexColor("#808090"), alignment=TA_JUSTIFY,
     )
     
     story.append(Paragraph(
@@ -242,7 +200,7 @@ def generate_medical_report(disease_type, patient_data, prediction_result):
         disclaimer_style
     ))
     
-    # ===== Doctor's Note Section =====
+    # Doctor's Notes
     story.append(Spacer(1, 0.8 * cm))
     story.append(Paragraph("✍️ Doctor's Notes", section_style))
     
@@ -262,7 +220,6 @@ def generate_medical_report(disease_type, patient_data, prediction_result):
         body_style
     ))
     
-    # Build PDF
     doc.build(story, onFirstPage=_header_footer, onLaterPages=_header_footer)
     
     pdf_bytes = buffer.getvalue()
@@ -301,6 +258,18 @@ def _get_high_risk_recommendations(disease_type):
             "Regular follow-up every 3 months.",
             "Call 1122 IMMEDIATELY for any sudden weakness or speech difficulty.",
         ],
+        "Kidney Disease": [
+            "Consult a nephrologist immediately for comprehensive evaluation.",
+            "Get kidney function tests: creatinine, BUN, eGFR, and urine analysis.",
+            "Control blood pressure strictly (target: below 130/80 mm Hg).",
+            "Manage diabetes aggressively if present — it's a leading cause of kidney disease.",
+            "Reduce salt, potassium, and phosphorus-rich foods (bananas, oranges, dairy).",
+            "Avoid painkillers like ibuprofen and naproxen — they harm kidneys.",
+            "Stay hydrated — drink 8-10 glasses of water daily (unless restricted by doctor).",
+            "Avoid high-protein diets and processed foods.",
+            "Get regular follow-up every 1-3 months.",
+            "Watch for warning signs: swelling in legs, fatigue, decreased urination, foamy urine.",
+        ],
     }
     return recs.get(disease_type, ["Consult a doctor immediately."])
 
@@ -332,22 +301,27 @@ def _get_low_risk_recommendations(disease_type):
             "Get annual health checkups.",
             "Stay mentally active with reading, puzzles, etc.",
         ],
+        "Kidney Disease": [
+            "Great! Your kidney health appears normal. Continue healthy habits.",
+            "Stay hydrated — 8-10 glasses of water daily.",
+            "Maintain normal blood pressure and blood sugar.",
+            "Reduce salt intake to less than 1 teaspoon/day.",
+            "Avoid unnecessary painkillers (NSAIDs like ibuprofen).",
+            "Eat a balanced diet rich in fruits and vegetables.",
+            "Get annual kidney function tests (creatinine, BUN).",
+            "Maintain a healthy weight and exercise regularly.",
+        ],
     }
     return recs.get(disease_type, ["Continue healthy lifestyle."])
 
 
-# ========================================
-# TESTING
-# ========================================
 if __name__ == "__main__":
     print("Testing PDF Generator...")
     
     test_patient = {
-        "age": 65,
-        "time_in_hospital": 7,
-        "num_medications": 25,
-        "num_lab_procedures": 60,
-        "number_diagnoses": 9,
+        "Age": 65,
+        "Time in Hospital (days)": 7,
+        "Number of Medications": 25,
     }
     
     test_result = {
@@ -356,9 +330,9 @@ if __name__ == "__main__":
         "summary": "This patient has a high probability of readmission.",
     }
     
-    pdf = generate_medical_report("Diabetes", test_patient, test_result)
+    pdf = generate_medical_report("Kidney Disease", test_patient, test_result)
     
     with open("test_report.pdf", "wb") as f:
         f.write(pdf)
     
-    print(f"✅ Test report saved as 'test_report.pdf' ({len(pdf)} bytes)")
+    print(f"✅ Test report saved ({len(pdf)} bytes)")

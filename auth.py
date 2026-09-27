@@ -1,6 +1,6 @@
 """
 MediFederate Authentication Module
-User registration, login, and session management with bcrypt password hashing
+User registration, login, and password reset with bcrypt
 """
 
 import sqlite3
@@ -42,41 +42,31 @@ def init_auth_database():
 
 
 def _is_valid_email(email):
-    """Validate email format"""
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(pattern, email) is not None
 
 
 def _is_valid_password(password):
-    """Password must be at least 6 characters"""
     return len(password) >= 6
 
 
 def signup(full_name, email, password, hospital="", role="doctor"):
-    """
-    Register a new user
-    Returns: (success: bool, message: str, user_data: dict or None)
-    """
-    # Validations
+    """Register a new user"""
     if not full_name or len(full_name.strip()) < 2:
         return False, "Full name must be at least 2 characters.", None
-
     if not _is_valid_email(email):
         return False, "Please enter a valid email address.", None
-
     if not _is_valid_password(password):
         return False, "Password must be at least 6 characters long.", None
-
-    # Hash password with bcrypt
+    
     password_bytes = password.encode('utf-8')
     salt = bcrypt.gensalt(rounds=12)
     password_hash = bcrypt.hashpw(password_bytes, salt)
-
+    
     conn = None
     try:
         conn = _get_connection()
         cursor = conn.cursor()
-
         cursor.execute('''
             INSERT INTO users (full_name, email, password_hash, role, hospital, created_at)
             VALUES (?, ?, ?, ?, ?, ?)
@@ -88,10 +78,9 @@ def signup(full_name, email, password, hospital="", role="doctor"):
             hospital.strip(),
             datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         ))
-
         conn.commit()
         user_id = cursor.lastrowid
-
+        
         user_data = {
             'id': user_id,
             'full_name': full_name.strip(),
@@ -99,9 +88,7 @@ def signup(full_name, email, password, hospital="", role="doctor"):
             'role': role,
             'hospital': hospital.strip()
         }
-
         return True, "Account created successfully!", user_data
-
     except sqlite3.IntegrityError:
         return False, "An account with this email already exists.", None
     except Exception as e:
@@ -112,37 +99,32 @@ def signup(full_name, email, password, hospital="", role="doctor"):
 
 
 def login(email, password):
-    """
-    Login a user
-    Returns: (success: bool, message: str, user_data: dict or None)
-    """
+    """Login a user"""
     if not email or not password:
         return False, "Please enter both email and password.", None
-
+    
     conn = None
     try:
         conn = _get_connection()
         cursor = conn.cursor()
-
         cursor.execute('''
             SELECT id, full_name, email, password_hash, role, hospital
             FROM users WHERE email = ?
         ''', (email.lower().strip(),))
-
+        
         row = cursor.fetchone()
-
+        
         if not row:
             return False, "Invalid email or password.", None
-
+        
         user_id, full_name, db_email, password_hash, role, hospital = row
-
-        # Verify password
+        
         if bcrypt.checkpw(password.encode('utf-8'), password_hash):
             cursor.execute('''
                 UPDATE users SET last_login = ? WHERE id = ?
             ''', (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), user_id))
             conn.commit()
-
+            
             user_data = {
                 'id': user_id,
                 'full_name': full_name,
@@ -150,11 +132,9 @@ def login(email, password):
                 'role': role,
                 'hospital': hospital
             }
-
             return True, "Login successful!", user_data
         else:
             return False, "Invalid email or password.", None
-
     except Exception as e:
         return False, f"Login error: {str(e)}", None
     finally:
@@ -162,32 +142,70 @@ def login(email, password):
             conn.close()
 
 
+def reset_password(email, new_password):
+    """
+    Reset a user's password (for forgot password flow)
+    Returns: (success: bool, message: str)
+    """
+    if not email or not new_password:
+        return False, "Please provide both email and new password."
+    
+    if not _is_valid_email(email):
+        return False, "Please enter a valid email address."
+    
+    if not _is_valid_password(new_password):
+        return False, "Password must be at least 6 characters long."
+    
+    # Check if user exists
+    if not email_exists(email):
+        return False, "No account found with this email address."
+    
+    # Hash new password
+    password_bytes = new_password.encode('utf-8')
+    salt = bcrypt.gensalt(rounds=12)
+    password_hash = bcrypt.hashpw(password_bytes, salt)
+    
+    conn = None
+    try:
+        conn = _get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE users SET password_hash = ? WHERE email = ?
+        ''', (password_hash, email.lower().strip()))
+        conn.commit()
+        
+        if cursor.rowcount > 0:
+            return True, "Password reset successfully! Please login with your new password."
+        else:
+            return False, "Failed to reset password. Please try again."
+    except Exception as e:
+        return False, f"Error: {str(e)}"
+    finally:
+        if conn:
+            conn.close()
+
+
 def get_user_count():
-    """Get total number of registered users"""
     conn = _get_connection()
     try:
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM users")
-        count = cursor.fetchone()[0]
-        return count
+        return cursor.fetchone()[0]
     finally:
         conn.close()
 
 
 def email_exists(email):
-    """Check if email is already registered"""
     conn = _get_connection()
     try:
         cursor = conn.cursor()
         cursor.execute("SELECT id FROM users WHERE email = ?", (email.lower().strip(),))
-        result = cursor.fetchone()
-        return result is not None
+        return cursor.fetchone() is not None
     finally:
         conn.close()
 
 
 def get_all_users():
-    """Get all users (for admin)"""
     conn = _get_connection()
     try:
         cursor = conn.cursor()
@@ -195,14 +213,12 @@ def get_all_users():
             SELECT id, full_name, email, role, hospital, created_at, last_login
             FROM users ORDER BY id DESC
         ''')
-        rows = cursor.fetchall()
-        return rows
+        return cursor.fetchall()
     finally:
         conn.close()
 
 
 def delete_user(user_id):
-    """Delete a user by ID"""
     conn = _get_connection()
     try:
         cursor = conn.cursor()
@@ -221,35 +237,27 @@ init_auth_database()
 # ========================================
 if __name__ == "__main__":
     print("Testing Authentication Module...\n")
-
-    success, msg, user = signup(
-        "Dr. Ahmed Khan",
-        "ahmed@medifederate.pk",
-        "secure123",
-        "Aga Khan Hospital"
-    )
+    
+    # Test signup
+    success, msg, user = signup("Dr. Test User", "test@medifederate.pk", "secure123", "Test Hospital")
     print(f"Signup: {success} - {msg}")
-    if user:
-        print(f"  User: {user}")
-
-    success, msg, _ = signup(
-        "Dr. Ahmed Khan",
-        "ahmed@medifederate.pk",
-        "secure123",
-        "Aga Khan Hospital"
-    )
+    
+    # Test duplicate
+    success, msg, _ = signup("Dr. Test", "test@medifederate.pk", "secure123", "Test Hospital")
     print(f"Duplicate signup: {success} - {msg}")
-
-    success, msg, user = login("ahmed@medifederate.pk", "secure123")
-    print(f"Correct login: {success} - {msg}")
-
-    success, msg, user = login("ahmed@medifederate.pk", "wrongpass")
-    print(f"Wrong password: {success} - {msg}")
-
-    success, msg, _ = signup("Test", "invalid-email", "pass123")
-    print(f"Invalid email: {success} - {msg}")
-
-    success, msg, _ = signup("Test User", "test@test.com", "123")
-    print(f"Short password: {success} - {msg}")
-
-    print(f"\nTotal users: {get_user_count()}")
+    
+    # Test login
+    success, msg, user = login("test@medifederate.pk", "secure123")
+    print(f"Login: {success} - {msg}")
+    
+    # Test reset password
+    success, msg = reset_password("test@medifederate.pk", "newpass123")
+    print(f"Reset password: {success} - {msg}")
+    
+    # Test login with new password
+    success, msg, user = login("test@medifederate.pk", "newpass123")
+    print(f"Login with new password: {success} - {msg}")
+    
+    # Test reset for non-existent email
+    success, msg = reset_password("nonexistent@test.com", "newpass")
+    print(f"Reset non-existent: {success} - {msg}")

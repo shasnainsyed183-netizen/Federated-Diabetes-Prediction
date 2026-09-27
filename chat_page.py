@@ -2,11 +2,14 @@
 MediBot Full-Page Chat Interface
 ChatGPT-style layout with sidebar history
 Bilingual support (English + Roman Urdu)
+SHAP Explainability for all 4 diseases
 """
 
 import streamlit as st
 from datetime import datetime
 import uuid
+import os
+import pandas as pd
 from chatbot import HealthChatbot
 
 
@@ -59,13 +62,12 @@ def inject_chat_page_css():
             margin: 0 auto;
         }
         
-        /* ===== HIDE AVATARS ===== */
+        /* HIDE AVATARS */
         [data-testid="stChatMessageAvatarUser"],
         [data-testid="stChatMessageAvatarAssistant"] {
             display: none !important;
         }
         
-        /* Chat message styling */
         [data-testid="stChatMessage"] {
             background: rgba(255, 255, 255, 0.03) !important;
             border-radius: 12px !important;
@@ -83,12 +85,10 @@ def inject_chat_page_css():
             width: 100% !important;
         }
         
-        /* Sidebar */
         section[data-testid="stSidebar"] {
             background: linear-gradient(180deg, #0f0f1a 0%, #1a1a2e 100%);
         }
         
-        /* Chat input */
         [data-testid="stChatInput"] {
             border-radius: 14px !important;
             border: 1px solid rgba(102, 126, 234, 0.3) !important;
@@ -98,7 +98,6 @@ def inject_chat_page_css():
             border-color: rgba(102, 126, 234, 0.8) !important;
         }
         
-        /* Buttons */
         .stButton > button {
             border-radius: 10px !important;
             font-weight: 500 !important;
@@ -111,7 +110,6 @@ def inject_chat_page_css():
             border: none !important;
         }
         
-        /* Chat header */
         .chat-header {
             text-align: center;
             padding: 20px 0;
@@ -132,7 +130,7 @@ def inject_chat_page_css():
             font-size: 0.9rem;
         }
         
-        /* ===== FLOATING BACK BUTTON (TOP-LEFT) ===== */
+        /* FLOATING BACK BUTTON */
         .st-key-floating_back_btn {
             position: fixed !important;
             top: 15px !important;
@@ -149,14 +147,27 @@ def inject_chat_page_css():
             font-weight: 600 !important;
             font-size: 0.9rem !important;
             box-shadow: 0 4px 14px rgba(102, 126, 234, 0.5) !important;
-            transition: all 0.25s ease !important;
-            height: auto !important;
-            width: auto !important;
         }
         
         .st-key-floating_back_btn button:hover {
             transform: translateY(-2px) !important;
             box-shadow: 0 6px 20px rgba(102, 126, 234, 0.7) !important;
+        }
+        
+        /* SHAP Card styling */
+        .shap-card {
+            background: linear-gradient(135deg, #1e1e2e 0%, #2a2a3e 100%);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 15px;
+        }
+        
+        .shap-card-title {
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 1.05rem;
+            margin-bottom: 10px;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -167,12 +178,12 @@ def render_chat_page():
     init_chat_state()
     inject_chat_page_css()
     
-    # ===== FLOATING BACK BUTTON (TOP-LEFT) =====
+    # FLOATING BACK BUTTON
     if st.button("🏠 Back to Home", key="floating_back_btn"):
         st.session_state.show_chat_page = False
         st.rerun()
     
-    # ============ SIDEBAR ============
+    # SIDEBAR
     with st.sidebar:
         if st.button("🏠  Back to Home", use_container_width=True, type="primary", key="back_home_sidebar"):
             st.session_state.show_chat_page = False
@@ -228,7 +239,7 @@ def render_chat_page():
             _create_new_chat()
             st.rerun()
     
-    # ============ MAIN CHAT ============
+    # MAIN CHAT
     current_chat = st.session_state.chat_sessions[st.session_state.current_chat_id]
     
     st.markdown(f"""
@@ -240,20 +251,18 @@ def render_chat_page():
     
     st.markdown("---")
     
-    # ===== Handle pending query from Gallery =====
+    # Handle pending query
     if st.session_state.get('pending_chat_query'):
         query = st.session_state.pending_chat_query
         st.session_state.pending_chat_query = None
         _handle_message(query)
     
-    # ============ WELCOME SCREEN ============
+    # WELCOME SCREEN
     if not current_chat['messages']:
         st.markdown("""
         <div style="text-align: center; padding: 20px 0;">
             <h2 style="color: #ffffff;">How can I help you today?</h2>
-            <p style="color: #808090;">
-                Ask in English or Roman Urdu
-            </p>
+            <p style="color: #808090;">Ask in English or Roman Urdu</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -285,25 +294,28 @@ def render_chat_page():
         st.markdown("---")
         st.markdown("**🩺 Chronic Conditions:**")
         
-        col7, col8, col9 = st.columns(3)
+        col7, col8, col9, col10 = st.columns(4)
         with col7:
-            if st.button("🩸 Diabetes / Sugar", use_container_width=True):
+            if st.button("🩸 Diabetes", use_container_width=True):
                 _handle_message("I have diabetes, what should I do?")
         with col8:
             if st.button("💓 BP High", use_container_width=True):
                 _handle_message("My blood pressure is high")
         with col9:
-            if st.button("🧠 Stroke Info", use_container_width=True):
+            if st.button("🧠 Stroke", use_container_width=True):
                 _handle_message("Tell me about stroke")
+        with col10:
+            if st.button("🫘 Kidney", use_container_width=True):
+                _handle_message("Tell me about kidney disease")
         
         st.markdown("---")
         st.markdown("**🇵🇰 Roman Urdu Suggestions:**")
         
-        col10, col11 = st.columns(2)
-        with col10:
+        col11, col12 = st.columns(2)
+        with col11:
             if st.button("🌡️ Mujhe bukhar hai", use_container_width=True):
                 _handle_message("Mujhe bukhar hai kya karoon?")
-        with col11:
+        with col12:
             if st.button("🤕 Sar dard ho raha hai", use_container_width=True):
                 _handle_message("Sar dard ho raha hai kya karoon?")
         
@@ -311,11 +323,11 @@ def render_chat_page():
         st.markdown("""
         <div style="text-align: center; color: #808090; font-size: 0.85rem; padding: 20px 0;">
             <strong>Topics I can help with:</strong><br><br>
-            🌡️ Fever · 🤕 Headache · 🤧 Cold/Cough · 🤢 Stomach · 💧 Diarrhea · 🩹 Allergy · 🩸 Diabetes · ❤️ Heart · 🧠 Stroke · ⚖️ BMI · 💓 BP · 🍎 Diet · 🏃 Exercise · 🚨 Emergency
+            🌡️ Fever · 🤕 Headache · 🤧 Cold/Cough · 🤢 Stomach · 💧 Diarrhea · 🩹 Allergy · 🩸 Diabetes · ❤️ Heart · 🧠 Stroke · 🫘 Kidney · ⚖️ BMI · 💓 BP · 🍎 Diet · 🏃 Exercise · 🚨 Emergency
         </div>
         """, unsafe_allow_html=True)
     
-    # ============ DISPLAY MESSAGES ============
+    # DISPLAY MESSAGES
     for msg in current_chat['messages']:
         if msg['role'] == 'user':
             with st.chat_message("user"):
@@ -324,7 +336,7 @@ def render_chat_page():
             with st.chat_message("assistant"):
                 st.markdown(msg['content'])
     
-    # ============ CHAT INPUT ============
+    # CHAT INPUT
     user_input = st.chat_input("Message MediBot... (English ya Roman Urdu mein)")
     
     if user_input:
