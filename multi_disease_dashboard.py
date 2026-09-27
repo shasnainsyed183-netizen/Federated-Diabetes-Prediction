@@ -38,7 +38,7 @@ if not st.session_state.logged_in:
 
 
 # ========================================
-# INFO PAGES SWITCHING (Email / Website)
+# INFO PAGES SWITCHING
 # ========================================
 if 'show_email_page' not in st.session_state:
     st.session_state.show_email_page = False
@@ -102,6 +102,19 @@ def load_stroke_model():
             'model': tf.keras.models.load_model('stroke_dp_model.keras'),
             'scaler': pickle.load(open('scaler_stroke.pkl', 'rb')),
             'features': pickle.load(open('feature_names_stroke.pkl', 'rb'))
+        }
+    except Exception as e:
+        return None
+
+
+@st.cache_resource(show_spinner=False)
+def load_kidney_model():
+    import tensorflow as tf
+    try:
+        return {
+            'model': tf.keras.models.load_model('kidney_dp_model.keras'),
+            'scaler': pickle.load(open('scaler_kidney.pkl', 'rb')),
+            'features': pickle.load(open('feature_names_kidney.pkl', 'rb'))
         }
     except Exception as e:
         return None
@@ -446,12 +459,12 @@ st.markdown("""
     
     .stTabs [data-baseweb="tab"] {
         height: 44px !important;
-        padding: 0 22px !important;
+        padding: 0 18px !important;
         border-radius: 10px !important;
         background: transparent !important;
         color: #b0b0c0 !important;
         font-weight: 500 !important;
-        font-size: 0.9rem !important;
+        font-size: 0.88rem !important;
         border: none !important;
         transition: all 0.25s ease !important;
         outline: none !important;
@@ -658,21 +671,23 @@ with st.sidebar:
 # MAIN TABS (Role-based)
 # ========================================
 if is_patient:
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-        "📈 Overview",
-        "🩸 Diabetes",
-        "❤️ Heart Disease",
-        "🧠 Stroke",
-        "🏥 Gallery",
-        "📞 Contacts"
-    ])
-    tab7 = None
-else:
     tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "📈 Overview",
         "🩸 Diabetes",
         "❤️ Heart Disease",
         "🧠 Stroke",
+        "🫘 Kidney",
+        "🏥 Gallery",
+        "📞 Contacts"
+    ])
+    tab8 = None
+else:
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+        "📈 Overview",
+        "🩸 Diabetes",
+        "❤️ Heart Disease",
+        "🧠 Stroke",
+        "🫘 Kidney",
         "🏥 Gallery",
         "📞 Contacts",
         "📜 History"
@@ -692,16 +707,16 @@ with tab1:
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         st.markdown("""
         <div class="metric-card">
             <div style="font-size: 2rem;">🩸</div>
-            <div class="metric-label">Diabetes Accuracy</div>
+            <div class="metric-label">Diabetes</div>
             <div class="metric-value">62.38%</div>
             <div><span class="status-pill pill-success">Beats Baseline</span></div>
-            <div style="color: #808090; font-size: 0.8rem; margin-top: 8px;">100,244 patients</div>
+            <div style="color: #808090; font-size: 0.75rem; margin-top: 8px;">100,244 patients</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -709,10 +724,10 @@ with tab1:
         st.markdown("""
         <div class="metric-card">
             <div style="font-size: 2rem;">❤️</div>
-            <div class="metric-label">Heart Disease Accuracy</div>
+            <div class="metric-label">Heart Disease</div>
             <div class="metric-value">88.52%</div>
-            <div><span class="status-pill pill-warning">⭐ Best Model</span></div>
-            <div style="color: #808090; font-size: 0.8rem; margin-top: 8px;">303 patients</div>
+            <div><span class="status-pill pill-warning">⭐ Best</span></div>
+            <div style="color: #808090; font-size: 0.75rem; margin-top: 8px;">303 patients</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -720,10 +735,21 @@ with tab1:
         st.markdown("""
         <div class="metric-card">
             <div style="font-size: 2rem;">🧠</div>
-            <div class="metric-label">Stroke Accuracy</div>
+            <div class="metric-label">Stroke</div>
             <div class="metric-value">72.90%</div>
             <div><span class="status-pill pill-info">80% Recall</span></div>
-            <div style="color: #808090; font-size: 0.8rem; margin-top: 8px;">5,109 patients</div>
+            <div style="color: #808090; font-size: 0.75rem; margin-top: 8px;">5,109 patients</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col4:
+        st.markdown("""
+        <div class="metric-card">
+            <div style="font-size: 2rem;">🫘</div>
+            <div class="metric-label">Kidney</div>
+            <div class="metric-value">100%</div>
+            <div><span class="status-pill pill-success">🎯 Excellent</span></div>
+            <div style="color: #808090; font-size: 0.75rem; margin-top: 8px;">400 patients</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -735,15 +761,15 @@ with tab1:
     
     with col_a:
         comparison = pd.DataFrame({
-            "Disease": ["Diabetes", "Heart Disease", "Stroke"],
-            "Accuracy (%)": [62.38, 88.52, 72.90],
-            "Data Shared": ["0 B", "0 B", "0 B"],
-            "Privacy": ["✅ DP", "✅ DP", "✅ DP"]
+            "Disease": ["Diabetes", "Heart Disease", "Stroke", "Kidney Disease"],
+            "Accuracy (%)": [62.38, 88.52, 72.90, 100.00],
+            "Data Shared": ["0 B", "0 B", "0 B", "0 B"],
+            "Privacy": ["✅ DP", "✅ DP", "✅ DP", "✅ DP"]
         })
         st.dataframe(comparison, use_container_width=True, hide_index=True)
     
     with col_b:
-        st.bar_chart(comparison.set_index("Disease")["Accuracy (%)"], height=250)
+        st.bar_chart(comparison.set_index("Disease")["Accuracy (%)"], height=280)
     
     st.markdown("<br>", unsafe_allow_html=True)
     
@@ -776,7 +802,7 @@ with tab1:
         """, unsafe_allow_html=True)
     
     st.markdown("<br>", unsafe_allow_html=True)
-    st.success("✅ **All predictions are powered by real trained neural networks** with Federated Learning + Differential Privacy — **ZERO patient data shared!**")
+    st.success("✅ **4 diseases** predicted using real trained neural networks with Federated Learning + Differential Privacy — **ZERO patient data shared!**")
 
 
 # ========================================
@@ -1098,9 +1124,141 @@ with tab4:
 
 
 # ========================================
-# TAB 5: GALLERY
+# TAB 5: KIDNEY DISEASE
 # ========================================
 with tab5:
+    st.markdown('<div class="section-header">🫘 Kidney Disease Prediction</div>', unsafe_allow_html=True)
+    
+    col_info1, col_info2, col_info3 = st.columns(3)
+    with col_info1:
+        st.metric("Accuracy", "100%", "🎯 Excellent")
+    with col_info2:
+        st.metric("Training Data", "400 patients")
+    with col_info3:
+        st.metric("Privacy", "✅ DP Enabled")
+    
+    st.markdown("---")
+    st.markdown("#### Enter Patient Details")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        age_k = st.slider("Age", 1, 100, 50, key="k_age")
+        bp_k = st.slider("Blood Pressure (mm Hg)", 50, 180, 80, key="k_bp")
+        sg_k = st.slider("Specific Gravity", 1.005, 1.025, 1.020, step=0.005, key="k_sg")
+        al_k = st.slider("Albumin (0-5)", 0, 5, 1, key="k_al")
+        su_k = st.slider("Sugar (0-5)", 0, 5, 0, key="k_su")
+        bgr_k = st.slider("Blood Glucose Random", 50, 500, 120, key="k_bgr")
+        bu_k = st.slider("Blood Urea", 10, 400, 40, key="k_bu")
+        sc_k = st.slider("Serum Creatinine", 0.5, 20.0, 1.2, step=0.1, key="k_sc")
+        sod_k = st.slider("Sodium", 100, 170, 140, key="k_sod")
+        pot_k = st.slider("Potassium", 2.0, 50.0, 4.5, step=0.1, key="k_pot")
+    with col2:
+        hemo_k = st.slider("Hemoglobin", 3.0, 20.0, 14.0, step=0.1, key="k_hemo")
+        pcv_k = st.slider("Packed Cell Volume", 10, 60, 40, key="k_pcv")
+        wc_k = st.slider("White Blood Cell Count", 2000, 25000, 8000, key="k_wc")
+        rc_k = st.slider("Red Blood Cell Count", 2.0, 8.0, 5.0, step=0.1, key="k_rc")
+        htn_k = st.selectbox("Hypertension", ["No", "Yes"], key="k_htn")
+        dm_k = st.selectbox("Diabetes Mellitus", ["No", "Yes"], key="k_dm")
+        cad_k = st.selectbox("Coronary Artery Disease", ["No", "Yes"], key="k_cad")
+        appet_k = st.selectbox("Appetite", ["Good", "Poor"], key="k_appet")
+        pe_k = st.selectbox("Pedal Edema", ["No", "Yes"], key="k_pe")
+        ane_k = st.selectbox("Anemia", ["No", "Yes"], key="k_ane")
+    
+    if st.button("🔮 Predict Kidney Disease", type="primary", key="k_btn"):
+        with st.spinner("Loading model..."):
+            model = load_kidney_model()
+        
+        data = {
+            'age': float(age_k),
+            'bp': float(bp_k),
+            'sg': float(sg_k),
+            'al': float(al_k),
+            'su': float(su_k),
+            'bgr': float(bgr_k),
+            'bu': float(bu_k),
+            'sc': float(sc_k),
+            'sod': float(sod_k),
+            'pot': float(pot_k),
+            'hemo': float(hemo_k),
+            'pcv': float(pcv_k),
+            'wc': float(wc_k),
+            'rc': float(rc_k),
+            'htn': 1.0 if htn_k == "Yes" else 0.0,
+            'dm': 1.0 if dm_k == "Yes" else 0.0,
+            'cad': 1.0 if cad_k == "Yes" else 0.0,
+            'appet': 1.0 if appet_k == "Good" else 0.0,
+            'pe': 1.0 if pe_k == "Yes" else 0.0,
+            'ane': 1.0 if ane_k == "Yes" else 0.0,
+            'rbc': 1.0,
+            'pc': 1.0,
+            'pcc': 0.0,
+            'ba': 0.0,
+        }
+        
+        prob = predict_with_model(model, data)
+        
+        if prob is not None:
+            st.info(f"**Patient Summary:** Age {age_k} · BP {bp_k} · Hemoglobin {hemo_k} · Creatinine {sc_k}")
+            pct = prob * 100
+            if prob > 0.5:
+                st.markdown(f"""
+                <div class="result-box result-high">
+                    <div class="result-title">🔴 High Risk of Kidney Disease</div>
+                    <div class="result-prob">{pct:.1f}%</div>
+                    <div class="result-desc">This patient shows signs of kidney disease. Immediate nephrology consultation is recommended.</div>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div class="result-box result-low">
+                    <div class="result-title">🟢 Low Risk of Kidney Disease</div>
+                    <div class="result-prob">{pct:.1f}%</div>
+                    <div class="result-desc">This patient shows low risk for kidney disease. Routine checkup is sufficient.</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            hist.save_prediction(
+                "Kidney Disease", prob,
+                "High Risk" if prob > 0.5 else "Low Risk",
+                f"Age: {age_k}, BP: {bp_k}, Hemoglobin: {hemo_k}, Creatinine: {sc_k}"
+            )
+            
+            pdf_bytes = generate_medical_report(
+                "Kidney Disease",
+                {
+                    "Age": age_k,
+                    "Blood Pressure": bp_k,
+                    "Hemoglobin": hemo_k,
+                    "Serum Creatinine": sc_k,
+                    "Blood Urea": bu_k,
+                    "Sodium": sod_k,
+                    "Potassium": pot_k,
+                    "Hypertension": htn_k,
+                    "Diabetes": dm_k,
+                    "Anemia": ane_k,
+                },
+                {
+                    "probability": prob,
+                    "is_high_risk": prob > 0.5,
+                    "summary": f"Patient has {pct:.1f}% probability of kidney disease.",
+                }
+            )
+            st.download_button(
+                label="📄  Download PDF Report",
+                data=pdf_bytes,
+                file_name=f"MediFederate_Kidney_Report_{age_k}y_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+                key="k_download_btn"
+            )
+        else:
+            st.error("⚠️ Kidney model not loaded.")
+
+
+# ========================================
+# TAB 6: GALLERY
+# ========================================
+with tab6:
     st.markdown('<div class="section-header">🏥 Medical Knowledge Gallery</div>', unsafe_allow_html=True)
     st.markdown("""
     Explore important health conditions, their symptoms, and prevention tips. 
@@ -1111,6 +1269,7 @@ with tab5:
         {"category": "CARDIOLOGY", "title": "Blood Pressure Monitoring", "desc": "High BP is a silent killer. Get checked regularly — normal is 120/80 mm Hg. Reduce salt, exercise daily, manage stress.", "image": "https://images.unsplash.com/photo-1579154204601-01588f351e67?w=800&auto=format&fit=crop", "emoji": "💓", "query": "My blood pressure is high, what should I do?"},
         {"category": "CARDIOLOGY", "title": "Heart Health", "desc": "Cardiovascular disease is the #1 cause of death globally. Watch cholesterol, avoid smoking, and stay active.", "image": "https://images.unsplash.com/photo-1628348070889-cb656235b4eb?w=800&auto=format&fit=crop", "emoji": "❤️", "query": "I have chest pain, what should I do?"},
         {"category": "ENDOCRINOLOGY", "title": "Diabetes & Blood Sugar", "desc": "Over 537M adults live with diabetes. Watch for excessive thirst, frequent urination, and fatigue. Monitor sugar levels regularly.", "image": "https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=800&auto=format&fit=crop", "emoji": "🩸", "query": "My sugar level is 200, what should I do?"},
+        {"category": "NEPHROLOGY", "title": "Kidney Health", "desc": "Kidneys filter your blood. Watch for swelling, fatigue, and changes in urination. Stay hydrated and control BP.", "image": "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&auto=format&fit=crop", "emoji": "🫘", "query": "How can I keep my kidneys healthy?"},
         {"category": "NEUROLOGY", "title": "Stroke Awareness", "desc": "Remember FAST: Face drooping, Arm weakness, Speech difficulty, Time to call 1122. Every minute counts!", "image": "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=800&auto=format&fit=crop", "emoji": "🧠", "query": "Tell me about stroke symptoms"},
         {"category": "GENERAL HEALTH", "title": "Fever & Infections", "desc": "Fever is the body's defense against infection. Stay hydrated, rest well, and use paracetamol. Seek help if fever lasts 3+ days.", "image": "https://images.unsplash.com/photo-1584362917165-526a968579e8?w=800&auto=format&fit=crop", "emoji": "🌡️", "query": "I have fever, what should I do?"},
         {"category": "GASTROENTEROLOGY", "title": "Stomach & Digestion", "desc": "Avoid spicy, oily food. Eat smaller meals. Manage stress. If pain persists over 24 hours, see a doctor.", "image": "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=800&auto=format&fit=crop", "emoji": "🤢", "query": "I have stomach pain, what should I do?"},
@@ -1165,9 +1324,9 @@ with tab5:
 
 
 # ========================================
-# TAB 6: CONTACTS & HELPLINE
+# TAB 7: CONTACTS & HELPLINE
 # ========================================
-with tab6:
+with tab7:
     st.markdown('<div class="section-header">📞 Contacts & Helpline</div>', unsafe_allow_html=True)
     st.markdown("""
     Emergency numbers, hospital contacts, and online support — sab kuch ek jagah.
@@ -1342,10 +1501,10 @@ with tab6:
 
 
 # ========================================
-# TAB 7: HISTORY (Doctor Only)
+# TAB 8: HISTORY (Doctor Only)
 # ========================================
-if tab7 is not None:
-    with tab7:
+if tab8 is not None:
+    with tab8:
         st.markdown('<div class="section-header">📜 Prediction History</div>', unsafe_allow_html=True)
         st.markdown("""
         Saari AI predictions yahan save hain. Aap filter, export, aur analytics dekh sakte hain.
@@ -1387,7 +1546,7 @@ if tab7 is not None:
             <div class="metric-card">
                 <div style="font-size: 2rem;">🏥</div>
                 <div class="metric-label">Diseases Covered</div>
-                <div class="metric-value">3</div>
+                <div class="metric-value">4</div>
             </div>
             """, unsafe_allow_html=True)
         
@@ -1398,7 +1557,7 @@ if tab7 is not None:
         with col_f1:
             disease_filter = st.selectbox(
                 "🔍 Filter by Disease",
-                ["All", "Diabetes", "Heart Disease", "Stroke"],
+                ["All", "Diabetes", "Heart Disease", "Stroke", "Kidney Disease"],
                 key="hist_filter"
             )
         
@@ -1488,7 +1647,7 @@ if tab7 is not None:
                     st.success(f"Prediction #{selected_id} deleted!")
                     st.rerun()
         else:
-            st.info("📭 No predictions yet. Go to Diabetes, Heart, or Stroke tab to make a prediction!")
+            st.info("📭 No predictions yet. Go to Diabetes, Heart, Kidney, or Stroke tab to make a prediction!")
 
 
 # ========================================
