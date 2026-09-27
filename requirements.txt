@@ -11,3 +11,5 @@ python-dotenv
 bcrypt
 shap
 plotly
+fastapi
+uvicorn

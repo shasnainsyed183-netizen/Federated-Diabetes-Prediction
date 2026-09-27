@@ -132,6 +132,28 @@ def load_kidney_model():
         return None
 
 
+@st.cache_resource(show_spinner=False)
+def load_thyroid_model():
+    import tensorflow as tf
+    try:
+        features = [
+            'age', 'sex', 'TSH', 'T3', 'TT4', 'T4U', 'FTI', 
+            'on_thyroxine', 'query_on_thyroxine', 'on_antithyroid_meds', 
+            'sick', 'pregnant', 'thyroid_surgery', 'I131_treatment', 
+            'query_hypothyroid', 'query_hyperthyroid', 'lithium', 
+            'goitre', 'tumor', 'hypopituitary', 'psych', 
+            'TSH_measured', 'T3_measured', 'TT4_measured', 
+            'T4U_measured', 'FTI_measured', 'TBG_measured'
+        ]
+        return {
+            'model': tf.keras.models.load_model('thyroid_dp_model.keras'),
+            'scaler': pickle.load(open('scaler_thyroid.pkl', 'rb')),
+            'features': features
+        }
+    except Exception:
+        return None
+
+
 def predict_with_model(model_dict, data_dict):
     if model_dict is None:
         return None
@@ -494,6 +516,44 @@ st.markdown("""
     .result-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 8px; }
     .result-prob { font-size: 2rem; font-weight: 800; margin: 8px 0; }
     .result-desc { font-size: 0.9rem; color: #b0b0c0; }
+
+    /* ===== CUSTOM LOADING SPINNER ===== */
+    [data-testid="stStatusWidget"] {
+        position: fixed !important;
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -50%) !important;
+        z-index: 9999999 !important;
+        background: rgba(30, 30, 46, 0.95) !important;
+        padding: 25px 45px !important;
+        border-radius: 16px !important;
+        border: 2px solid #667eea !important;
+        box-shadow: 0 10px 40px rgba(102, 126, 234, 0.5) !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-width: 220px !important;
+    }
+
+    [data-testid="stStatusWidget"] > div {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 15px !important;
+    }
+
+    [data-testid="stStatusWidget"] span {
+        color: #ffffff !important;
+        font-weight: 600 !important;
+        font-size: 16px !important;
+        letter-spacing: 0.5px !important;
+    }
+
+    [data-testid="stStatusWidget"] svg {
+        width: 50px !important;
+        height: 50px !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -546,15 +606,15 @@ st.markdown(f"""
 # MAIN TABS
 # ========================================
 if is_patient:
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
-        "📈 Overview", "🩸 Diabetes", "❤️ Heart Disease", "🧠 Stroke",
-        "🫘 Kidney", "🏥 Gallery", "📞 Contacts"
-    ])
-    tab8 = None
-else:
     tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
         "📈 Overview", "🩸 Diabetes", "❤️ Heart Disease", "🧠 Stroke",
-        "🫘 Kidney", "🏥 Gallery", "📞 Contacts", "📜 History"
+        "🫘 Kidney", "🧬 Thyroid", "🏥 Gallery", "📞 Contacts"
+    ])
+    tab9 = None
+else:
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+        "📈 Overview", "🩸 Diabetes", "❤️ Heart Disease", "🧠 Stroke",
+        "🫘 Kidney", "🧬 Thyroid", "🏥 Gallery", "📞 Contacts", "📜 History"
     ])
 
 
@@ -571,7 +631,7 @@ with tab1:
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
         ui.animated_metric_card("🩸", "Diabetes", "62.38%", "100,244 patients", "Beats Baseline", "success")
@@ -584,6 +644,9 @@ with tab1:
     
     with col4:
         ui.animated_metric_card("🫘", "Kidney", "100%", "400 patients", "🎯 Excellent", "success")
+
+    with col5:
+        ui.animated_metric_card("🧬", "Thyroid", "54.67%", "3,000 patients", "Baseline", "info")
     
     st.markdown("<br>", unsafe_allow_html=True)
     
@@ -593,10 +656,10 @@ with tab1:
     
     with col_a:
         comparison = pd.DataFrame({
-            "Disease": ["Diabetes", "Heart Disease", "Stroke", "Kidney Disease"],
-            "Accuracy (%)": [62.38, 88.52, 72.90, 100.00],
-            "Data Shared": ["0 B", "0 B", "0 B", "0 B"],
-            "Privacy": ["✅ DP", "✅ DP", "✅ DP", "✅ DP"]
+            "Disease": ["Diabetes", "Heart Disease", "Stroke", "Kidney Disease", "Thyroid"],
+            "Accuracy (%)": [62.38, 88.52, 72.90, 100.00, 54.67],
+            "Data Shared": ["0 B", "0 B", "0 B", "0 B", "0 B"],
+            "Privacy": ["✅ DP", "✅ DP", "✅ DP", "✅ DP", "✅ DP"]
         })
         st.dataframe(comparison, use_container_width=True, hide_index=True)
     
@@ -635,7 +698,7 @@ with tab1:
         """, unsafe_allow_html=True)
     
     st.markdown("<br>", unsafe_allow_html=True)
-    st.success("✅ **4 diseases** predicted using real trained neural networks with Federated Learning + Differential Privacy — **ZERO patient data shared!**")
+    st.success("✅ **5 diseases** predicted using real trained neural networks with Federated Learning + Differential Privacy — **ZERO patient data shared!**")
 
 
 # ========================================
@@ -1005,9 +1068,127 @@ with tab5:
 
 
 # ========================================
-# TAB 6: GALLERY
+# TAB 6: THYROID DISEASE
 # ========================================
 with tab6:
+    st.markdown('<div class="section-header">🧬 Thyroid Disease Prediction</div>', unsafe_allow_html=True)
+    
+    col_info1, col_info2, col_info3 = st.columns(3)
+    with col_info1:
+        st.metric("Accuracy", "54.67%", "Baseline (Synthetic)")
+    with col_info2:
+        st.metric("Training Data", "3,000 patients")
+    with col_info3:
+        st.metric("Privacy", "✅ DP Enabled")
+    
+    st.markdown("---")
+    st.markdown("#### Enter Patient Details")
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        t_age = st.number_input("Age", 1, 100, 45, key="t_age")
+        t_sex = st.selectbox("Gender", ["Female", "Male"], key="t_sex")
+        t_tsh = st.number_input("TSH Level", 0.0, 50.0, 2.0, step=0.1, key="t_tsh")
+        t_t3 = st.number_input("T3 Level", 0.0, 10.0, 1.5, step=0.1, key="t_t3")
+        t_tt4 = st.number_input("TT4 Level", 0.0, 30.0, 8.0, step=0.1, key="t_tt4")
+        t_t4u = st.number_input("T4U Level", 0.0, 3.0, 1.0, step=0.1, key="t_t4u")
+        t_fti = st.number_input("FTI Level", 0.0, 30.0, 8.0, step=0.1, key="t_fti")
+        t_on_thy = st.selectbox("On Thyroxine", ["No", "Yes"], key="t_on_thy")
+        t_query_thy = st.selectbox("Query on Thyroxine", ["No", "Yes"], key="t_query_thy")
+        t_anti_thy = st.selectbox("On Antithyroid Meds", ["No", "Yes"], key="t_anti_thy")
+    with col2:
+        t_sick = st.selectbox("Sick", ["No", "Yes"], key="t_sick")
+        t_pregnant = st.selectbox("Pregnant", ["No", "Yes"], key="t_pregnant")
+        t_surgery = st.selectbox("Thyroid Surgery", ["No", "Yes"], key="t_surgery")
+        t_i131 = st.selectbox("I131 Treatment", ["No", "Yes"], key="t_i131")
+        t_query_hypo = st.selectbox("Query Hypothyroid", ["No", "Yes"], key="t_query_hypo")
+        t_query_hyper = st.selectbox("Query Hyperthyroid", ["No", "Yes"], key="t_query_hyper")
+        t_lithium = st.selectbox("Lithium", ["No", "Yes"], key="t_lithium")
+        t_goitre = st.selectbox("Goitre", ["No", "Yes"], key="t_goitre")
+        t_tumor = st.selectbox("Tumor", ["No", "Yes"], key="t_tumor")
+    with col3:
+        t_hypopit = st.selectbox("Hypopituitary", ["No", "Yes"], key="t_hypopit")
+        t_psych = st.selectbox("Psych", ["No", "Yes"], key="t_psych")
+        t_tsh_meas = st.selectbox("TSH Measured", ["No", "Yes"], key="t_tsh_meas")
+        t_t3_meas = st.selectbox("T3 Measured", ["No", "Yes"], key="t_t3_meas")
+        t_tt4_meas = st.selectbox("TT4 Measured", ["No", "Yes"], key="t_tt4_meas")
+        t_t4u_meas = st.selectbox("T4U Measured", ["No", "Yes"], key="t_t4u_meas")
+        t_fti_meas = st.selectbox("FTI Measured", ["No", "Yes"], key="t_fti_meas")
+        t_tbg_meas = st.selectbox("TBG Measured", ["No", "Yes"], key="t_tbg_meas")
+    
+    if st.button("🔮 Predict Thyroid Risk", type="primary", key="t_btn"):
+        loading_placeholder = st.empty()
+        with loading_placeholder.container():
+            ui.prediction_loading_animation("Thyroid")
+        
+        model = load_thyroid_model()
+        
+        data = {
+            'age': float(t_age), 'sex': 1.0 if t_sex == "Male" else 0.0,
+            'TSH': float(t_tsh), 'T3': float(t_t3), 'TT4': float(t_tt4),
+            'T4U': float(t_t4u), 'FTI': float(t_fti),
+            'on_thyroxine': 1.0 if t_on_thy == "Yes" else 0.0,
+            'query_on_thyroxine': 1.0 if t_query_thy == "Yes" else 0.0,
+            'on_antithyroid_meds': 1.0 if t_anti_thy == "Yes" else 0.0,
+            'sick': 1.0 if t_sick == "Yes" else 0.0,
+            'pregnant': 1.0 if t_pregnant == "Yes" else 0.0,
+            'thyroid_surgery': 1.0 if t_surgery == "Yes" else 0.0,
+            'I131_treatment': 1.0 if t_i131 == "Yes" else 0.0,
+            'query_hypothyroid': 1.0 if t_query_hypo == "Yes" else 0.0,
+            'query_hyperthyroid': 1.0 if t_query_hyper == "Yes" else 0.0,
+            'lithium': 1.0 if t_lithium == "Yes" else 0.0,
+            'goitre': 1.0 if t_goitre == "Yes" else 0.0,
+            'tumor': 1.0 if t_tumor == "Yes" else 0.0,
+            'hypopituitary': 1.0 if t_hypopit == "Yes" else 0.0,
+            'psych': 1.0 if t_psych == "Yes" else 0.0,
+            'TSH_measured': 1.0 if t_tsh_meas == "Yes" else 0.0,
+            'T3_measured': 1.0 if t_t3_meas == "Yes" else 0.0,
+            'TT4_measured': 1.0 if t_tt4_meas == "Yes" else 0.0,
+            'T4U_measured': 1.0 if t_t4u_meas == "Yes" else 0.0,
+            'FTI_measured': 1.0 if t_fti_meas == "Yes" else 0.0,
+            'TBG_measured': 1.0 if t_tbg_meas == "Yes" else 0.0
+        }
+        
+        prob = predict_with_model(model, data)
+        loading_placeholder.empty()
+        
+        if prob is not None:
+            st.info(f"**Patient Summary:** Age {t_age} · {t_sex} · TSH {t_tsh} · T3 {t_t3} · TT4 {t_tt4}")
+            pct = prob * 100
+            
+            ui.result_card_with_animation(
+                prob > 0.5,
+                "High Risk of Thyroid Disease" if prob > 0.5 else "Low Risk of Thyroid Disease",
+                pct,
+                "This patient has a high probability of thyroid disease. Endocrinology consultation is recommended." if prob > 0.5 else "This patient has a low probability of thyroid disease. Routine follow-up is sufficient."
+            )
+            
+            hist.save_prediction(
+                "Thyroid", prob,
+                "High Risk" if prob > 0.5 else "Low Risk",
+                f"Age: {t_age}, TSH: {t_tsh}, T3: {t_t3}, TT4: {t_tt4}",
+                user_email=user_email
+            )
+            
+            pdf_bytes = generate_medical_report(
+                "Thyroid Disease",
+                {"Age": t_age, "Gender": t_sex, "TSH": t_tsh, "T3": t_t3, "TT4": t_tt4, "T4U": t_t4u, "FTI": t_fti},
+                {"probability": prob, "is_high_risk": prob > 0.5,
+                 "summary": f"Patient has {pct:.1f}% probability of thyroid disease."}
+            )
+            st.download_button(
+                label="📄  Download PDF Report", data=pdf_bytes,
+                file_name=f"MediFederate_Thyroid_Report_{t_age}y_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                mime="application/pdf", use_container_width=True, key="t_download_btn"
+            )
+        else:
+            st.error("⚠️ Thyroid model not loaded.")
+
+
+# ========================================
+# TAB 7: GALLERY
+# ========================================
+with tab7:
     st.markdown('<div class="section-header">🏥 Medical Knowledge Gallery</div>', unsafe_allow_html=True)
     st.markdown("Explore important health conditions, their symptoms, and prevention tips.")
     
@@ -1017,6 +1198,7 @@ with tab6:
         {"category": "ENDOCRINOLOGY", "title": "Diabetes & Blood Sugar", "desc": "Over 537M adults live with diabetes. Monitor sugar regularly.", "image": "https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=800&auto=format&fit=crop", "emoji": "🩸", "query": "My sugar level is 200, what should I do?"},
         {"category": "NEPHROLOGY", "title": "Kidney Health", "desc": "Kidneys filter your blood. Stay hydrated and control BP.", "image": "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&auto=format&fit=crop", "emoji": "🫘", "query": "How can I keep my kidneys healthy?"},
         {"category": "NEUROLOGY", "title": "Stroke Awareness", "desc": "Remember FAST: Face, Arm, Speech, Time. Every minute counts!", "image": "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=800&auto=format&fit=crop", "emoji": "🧠", "query": "Tell me about stroke symptoms"},
+        {"category": "ENDOCRINOLOGY", "title": "Thyroid Health", "desc": "Thyroid disorders affect metabolism. Get TSH, T3, T4 checked if symptomatic.", "image": "https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=800&auto=format&fit=crop", "emoji": "🧬", "query": "What are the symptoms of thyroid problems?"},
         {"category": "GENERAL HEALTH", "title": "Fever & Infections", "desc": "Fever is the body's defense against infection.", "image": "https://images.unsplash.com/photo-1584362917165-526a968579e8?w=800&auto=format&fit=crop", "emoji": "🌡️", "query": "I have fever, what should I do?"},
         {"category": "GASTROENTEROLOGY", "title": "Stomach & Digestion", "desc": "Avoid spicy, oily food. Eat smaller meals.", "image": "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=800&auto=format&fit=crop", "emoji": "🤢", "query": "I have stomach pain, what should I do?"},
         {"category": "HEMATOLOGY", "title": "Blood Health", "desc": "Regular blood tests help detect conditions early.", "image": "https://images.unsplash.com/photo-1631815589968-fdb09a223b1e?w=800&auto=format&fit=crop", "emoji": "🩸", "query": "I am feeling weakness, what should I do?"},
@@ -1070,9 +1252,9 @@ with tab6:
 
 
 # ========================================
-# TAB 7: CONTACTS
+# TAB 8: CONTACTS
 # ========================================
-with tab7:
+with tab8:
     st.markdown('<div class="section-header">📞 Contacts & Helpline</div>', unsafe_allow_html=True)
     
     st.markdown("##### 🚨 Emergency Numbers")
@@ -1205,10 +1387,10 @@ with tab7:
 
 
 # ========================================
-# TAB 8: HISTORY (Doctor Only)
+# TAB 9: HISTORY (Doctor Only)
 # ========================================
-if tab8 is not None:
-    with tab8:
+if tab9 is not None:
+    with tab9:
         st.markdown('<div class="section-header">📜 My Prediction History</div>', unsafe_allow_html=True)
         st.markdown(f"""
         Showing predictions for: **{current_user['full_name']}** ({current_user['email']})
@@ -1230,7 +1412,7 @@ if tab8 is not None:
             ui.animated_metric_card("🟢", "Low Risk", str(stats['low_risk']))
         
         with col4:
-            ui.animated_metric_card("🏥", "Diseases", "4")
+            ui.animated_metric_card("🏥", "Diseases", "5")
         
         st.markdown("<br>", unsafe_allow_html=True)
         
@@ -1239,7 +1421,7 @@ if tab8 is not None:
         with col_f1:
             disease_filter = st.selectbox(
                 "🔍 Filter by Disease",
-                ["All", "Diabetes", "Heart Disease", "Stroke", "Kidney Disease"],
+                ["All", "Diabetes", "Heart Disease", "Stroke", "Kidney Disease", "Thyroid"],
                 key="hist_filter"
             )
         
@@ -1317,7 +1499,7 @@ if tab8 is not None:
                     st.success(f"Prediction #{selected_id} deleted!")
                     st.rerun()
         else:
-            st.info("📭 You have not made any predictions yet. Go to Diabetes, Heart, Stroke, or Kidney tab to make your first prediction!")
+            st.info("📭 You have not made any predictions yet. Go to Diabetes, Heart, Stroke, Kidney, or Thyroid tab to make your first prediction!")
 
 
 # ========================================

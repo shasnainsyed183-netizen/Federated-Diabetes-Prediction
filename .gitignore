@@ -3,12 +3,11 @@ venv/
 __pycache__/
 *.pyc
 
-# Data Files (bohot bara hai)
+# Large Data Files
 data/diabetic_data.csv
 
-# Database Files (local only)
-predictions_history.db
-users.db
+# Local Databases (SQLite)
+*.db
 
 # VS Code settings
 .vscode/

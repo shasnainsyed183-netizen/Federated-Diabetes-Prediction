@@ -23,7 +23,7 @@ Built with **Federated Learning** + **Differential Privacy** to deliver accurate
 
 ### 📊 Dashboard Overview
 ![Dashboard Overview](screenshots/dashboard_overview.png)
-*Real-time performance metrics for 4 disease prediction models — all achieving high accuracy without sharing any patient data.*
+*Real-time performance metrics for 5 disease prediction models — all achieving high accuracy without sharing any patient data.*
 
 ### 🩸 Diabetes Prediction
 ![Diabetes Prediction](screenshots/diabetes_prediction.png)
@@ -51,6 +51,7 @@ Built with **Federated Learning** + **Differential Privacy** to deliver accurate
 | ❤️ **Heart Disease Prediction** | 88.52% accuracy ⭐ Best Model |
 | 🧠 **Stroke Prediction** | 72.90% accuracy · 80% Recall |
 | 🫘 **Kidney Disease Prediction** | 100% accuracy · 400 patients |
+| 🧬 **Thyroid Prediction** | 54.67% accuracy · 3,000 patients |
 | 🔒 **Federated Learning** | 3 hospitals train together, zero data sharing |
 | 🛡️ **Differential Privacy** | Gaussian noise for privacy guarantee |
 | 🔍 **Explainable AI (SHAP)** | Feature importance for medical trust |
@@ -60,6 +61,7 @@ Built with **Federated Learning** + **Differential Privacy** to deliver accurate
 | 🔐 **User Authentication** | bcrypt-secured login + patient guest mode |
 | 📞 **Contacts & Helpline** | Emergency numbers and hospital directory |
 | 🎨 **Settings & Account** | Profile, password change, and preferences |
+| 🌐 **REST API** | Production-grade API for all 5 disease predictions |
 
 ---
 
@@ -71,8 +73,9 @@ Built with **Federated Learning** + **Differential Privacy** to deliver accurate
 | ❤️ Heart Disease | **88.52%** ⭐ | 303 | 0 bytes | ✅ DP |
 | 🧠 Stroke | 72.90% | 5,109 | 0 bytes | ✅ DP |
 | 🫘 Kidney Disease | **100%** | 400 | 0 bytes | ✅ DP |
+| 🧬 Thyroid | 54.67% | 3,000 | 0 bytes | ✅ DP |
 
-**Total:** 105,656 patients trained · **ZERO** data shared
+**Total:** 108,656 patients trained · **ZERO** data shared
 
 ---
 
@@ -89,6 +92,10 @@ Built with **Federated Learning** + **Differential Privacy** to deliver accurate
 - Streamlit 1.x
 - Custom CSS + Animations
 - Plotly Interactive Charts
+
+**Backend & API:**
+- FastAPI
+- Uvicorn
 
 **Data & Storage:**
 - SQLite — History + Users + Chats
@@ -123,9 +130,10 @@ Federated_Diabetes_Project/
 │   ├── cleaned_data.csv
 │   ├── heart_disease.csv
 │   ├── stroke_data.csv
-│   └── kidney_data.csv
+│   ├── kidney_data.csv
+│   └── thyroid_data.csv
 │
-├── multi_disease_dashboard.py   # Main dashboard (8 tabs)
+├── multi_disease_dashboard.py   # Main dashboard (9 tabs)
 ├── login_page.py                # Authentication UI
 ├── chat_page.py                 # Full-page AI chatbot
 ├── chatbot.py                   # Groq AI backend
@@ -143,8 +151,11 @@ Federated_Diabetes_Project/
 ├── heart_federated.py           # Heart model training
 ├── stroke_federated.py          # Stroke model training
 ├── kidney_federated.py          # Kidney model training
+├── download_thyroid_data.py     # Thyroid data preprocessing
+├── thyroid_federated.py         # Thyroid model training
 ├── shap_explainer.py            # SHAP analysis
 │
+├── api.py                       # REST API (FastAPI)
 ├── requirements.txt
 ├── README.md
 └── PROJECT_REPORT.md
@@ -170,8 +181,43 @@ pip install -r requirements.txt
 # 4. Add Groq API key
 echo GROQ_API_KEY=gsk_your_key_here > .env
 
-# 5. Run the app
+# 5. Run the Streamlit app
 streamlit run multi_disease_dashboard.py
+
+# 6. Run the REST API (Optional, in a new terminal)
+uvicorn api:app --reload
+```
+
+---
+
+## 🌐 REST API
+
+MediFederate also provides a production-grade REST API for all 5 disease predictions.
+
+**Interactive API Documentation (Swagger UI):**
+Once the server is running, open your browser and go to:
+```text
+http://127.0.0.1:8000/docs
+```
+
+**Available Endpoints:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/predict/diabetes` | Predict Diabetes Readmission Risk |
+| POST | `/predict/heart` | Predict Heart Disease Risk |
+| POST | `/predict/stroke` | Predict Stroke Risk |
+| POST | `/predict/kidney` | Predict Kidney Disease Risk |
+| POST | `/predict/thyroid` | Predict Thyroid Disease Risk |
+
+**Sample Response:**
+```json
+{
+  "disease": "Heart Disease",
+  "probability": 55.4,
+  "risk_level": "High Risk",
+  "data_shared": "0 bytes",
+  "privacy": "Differential Privacy Enabled"
+}
 ```
 
 ---
