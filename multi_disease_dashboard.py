@@ -49,7 +49,6 @@ if 'logged_in' not in st.session_state:
 if 'user' not in st.session_state:
     st.session_state.user = None
 
-# Check for auto-login via URL parameters (from HTML website)
 try:
     query_params = st.query_params
     autologin = query_params.get('autologin', None)
@@ -71,6 +70,7 @@ except Exception:
 if not st.session_state.logged_in:
     render_login_page()
     st.stop()
+
 
 # ========================================
 # PAGE SWITCHING (Dashboard vs Chat)
@@ -234,21 +234,17 @@ st.markdown("""
         width: 0 !important; 
     }
     
-    /* ===== PREMIUM SCROLLBAR ===== */
     ::-webkit-scrollbar { width: 12px; height: 12px; }
     ::-webkit-scrollbar-track { background: #0A0A1A; border-radius: 10px; }
     ::-webkit-scrollbar-thumb {
         background: linear-gradient(180deg, #6C63FF 0%, #FF6584 100%);
         border-radius: 10px;
         border: 3px solid #0A0A1A;
-        transition: all 0.3s;
     }
     ::-webkit-scrollbar-thumb:hover {
         background: linear-gradient(180deg, #8B7FFF 0%, #FF8AA5 100%);
-        box-shadow: 0 0 20px rgba(108, 99, 255, 0.8);
     }
     
-    /* ===== FLOATING BUTTONS - 3D PREMIUM ===== */
     .st-key-top_settings_btn, 
     .st-key-top_chat_btn, 
     .st-key-top_email_btn, 
@@ -279,31 +275,10 @@ st.markdown("""
         align-items: center !important; 
         justify-content: center !important; 
         min-width: 0 !important;
-        position: relative !important;
-        overflow: hidden !important;
         box-shadow: 
             0 8px 24px rgba(0, 0, 0, 0.4),
             inset 0 -3px 0 rgba(0, 0, 0, 0.2),
             inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
-    }
-    
-    .st-key-top_settings_btn button::before, 
-    .st-key-top_chat_btn button::before, 
-    .st-key-top_email_btn button::before, 
-    .st-key-top_web_btn button::before {
-        content: "";
-        position: absolute;
-        top: 0; left: -100%;
-        width: 100%; height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-        transition: left 0.6s ease;
-    }
-    
-    .st-key-top_settings_btn button:hover::before, 
-    .st-key-top_chat_btn button:hover::before, 
-    .st-key-top_email_btn button:hover::before, 
-    .st-key-top_web_btn button:hover::before {
-        left: 100%;
     }
     
     .st-key-top_settings_btn button:hover, 
@@ -313,54 +288,29 @@ st.markdown("""
         transform: translateY(-4px) scale(1.08) !important;
     }
     
-    .st-key-top_settings_btn button:active, 
-    .st-key-top_chat_btn button:active, 
-    .st-key-top_email_btn button:active, 
-    .st-key-top_web_btn button:active {
-        transform: translateY(-1px) scale(0.98) !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(0, 0, 0, 0.3) !important;
-    }
-    
     .st-key-top_settings_btn button { 
         background: linear-gradient(145deg, #FFC933, #F5A623) !important; 
         box-shadow: 0 8px 24px rgba(255, 184, 0, 0.5), inset 0 -3px 0 rgba(180, 120, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
     }
-    .st-key-top_settings_btn button:hover {
-        box-shadow: 0 12px 32px rgba(255, 184, 0, 0.7), inset 0 -3px 0 rgba(180, 120, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
-    }
-    
     .st-key-top_chat_btn button { 
         background: linear-gradient(145deg, #2DFFBF, #00C994) !important; 
         box-shadow: 0 8px 24px rgba(0, 217, 163, 0.5), inset 0 -3px 0 rgba(0, 140, 110, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
     }
-    .st-key-top_chat_btn button:hover {
-        box-shadow: 0 12px 32px rgba(0, 217, 163, 0.7), inset 0 -3px 0 rgba(0, 140, 110, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
-    }
-    
     .st-key-top_email_btn button { 
         background: linear-gradient(145deg, #60A5FA, #3B82F6) !important; 
         box-shadow: 0 8px 24px rgba(59, 130, 246, 0.5), inset 0 -3px 0 rgba(30, 90, 180, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
     }
-    .st-key-top_email_btn button:hover {
-        box-shadow: 0 12px 32px rgba(59, 130, 246, 0.7), inset 0 -3px 0 rgba(30, 90, 180, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
-    }
-    
     .st-key-top_web_btn button { 
         background: linear-gradient(145deg, #A78BFA, #8B5CF6) !important; 
         box-shadow: 0 8px 24px rgba(139, 92, 246, 0.5), inset 0 -3px 0 rgba(90, 60, 180, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
     }
-    .st-key-top_web_btn button:hover {
-        box-shadow: 0 12px 32px rgba(139, 92, 246, 0.7), inset 0 -3px 0 rgba(90, 60, 180, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
-    }
     
-    /* ===== MAIN CONTAINER ===== */
     .main .block-container { 
         padding-top: 1.5rem; 
         padding-bottom: 3rem; 
         max-width: 1400px; 
     }
     
-    /* ===== HERO HEADER - CINEMATIC ===== */
     .hero-header {
         background: linear-gradient(135deg, #6C63FF 0%, #8B5CF6 40%, #FF6584 100%);
         background-size: 200% 200%;
@@ -418,9 +368,7 @@ st.markdown("""
         letter-spacing: -2px; 
         position: relative; 
         z-index: 2;
-        text-shadow: 
-            0 2px 10px rgba(0, 0, 0, 0.2),
-            0 8px 40px rgba(0, 0, 0, 0.15);
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2), 0 8px 40px rgba(0, 0, 0, 0.15);
     }
     
     .hero-subtitle { 
@@ -450,7 +398,6 @@ st.markdown("""
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.3);
     }
     
-    /* ===== METRIC CARDS - 3D PREMIUM ===== */
     .metric-card { 
         background: linear-gradient(145deg, #14142B, #0E0E22);
         border: 1px solid var(--border);
@@ -493,9 +440,7 @@ st.markdown("""
         background: linear-gradient(145deg, #1A1A38, #14142B);
     }
     
-    .metric-card:hover::before {
-        opacity: 1;
-    }
+    .metric-card:hover::before { opacity: 1; }
     
     .metric-value { 
         font-size: 2.6rem; 
@@ -518,7 +463,6 @@ st.markdown("""
         letter-spacing: 2px; 
     }
     
-    /* ===== FEATURE CARDS - PREMIUM ===== */
     .feature-card { 
         background: linear-gradient(145deg, #14142B, #0E0E22);
         border-left: 4px solid var(--primary);
@@ -526,34 +470,14 @@ st.markdown("""
         padding: 26px; 
         margin-bottom: 18px; 
         transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); 
-        box-shadow: 
-            0 8px 24px rgba(0, 0, 0, 0.3),
-            inset 0 1px 0 rgba(255, 255, 255, 0.05);
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .feature-card::after {
-        content: "";
-        position: absolute;
-        left: 0; top: 0; bottom: 0;
-        width: 4px;
-        background: linear-gradient(180deg, var(--primary), var(--secondary));
-        opacity: 0;
-        transition: opacity 0.3s;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
     }
     
     .feature-card:hover {
         transform: translateX(10px) scale(1.01);
         border-left-color: var(--secondary);
-        box-shadow: 
-            0 20px 40px rgba(108, 99, 255, 0.3),
-            0 0 60px rgba(108, 99, 255, 0.15);
+        box-shadow: 0 20px 40px rgba(108, 99, 255, 0.3), 0 0 60px rgba(108, 99, 255, 0.15);
         background: linear-gradient(145deg, #1A1A38, #14142B);
-    }
-    
-    .feature-card:hover::after {
-        opacity: 1;
     }
     
     .feature-title { 
@@ -570,7 +494,6 @@ st.markdown("""
         line-height: 1.65; 
     }
     
-    /* ===== SECTION HEADERS ===== */
     .section-header { 
         font-size: 1.75rem; 
         font-weight: 800; 
@@ -589,7 +512,6 @@ st.markdown("""
         gap: 12px;
     }
     
-    /* ===== CONTACT CARDS ===== */
     .contact-card { 
         background: linear-gradient(145deg, #14142B, #0E0E22);
         border: 1px solid var(--border);
@@ -597,43 +519,19 @@ st.markdown("""
         padding: 22px; 
         margin-bottom: 18px; 
         transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-        box-shadow: 
-            0 8px 24px rgba(0, 0, 0, 0.3),
-            inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
     }
     
     .contact-card:hover {
         border-color: var(--border-hover);
         transform: translateY(-6px);
-        box-shadow: 
-            0 20px 40px rgba(108, 99, 255, 0.3),
-            0 0 60px rgba(108, 99, 255, 0.15);
+        box-shadow: 0 20px 40px rgba(108, 99, 255, 0.3), 0 0 60px rgba(108, 99, 255, 0.15);
     }
     
-    .contact-card .contact-icon { 
-        font-size: 2.2rem; 
-        margin-bottom: 12px; 
-        display: inline-block;
-        filter: drop-shadow(0 4px 8px rgba(108, 99, 255, 0.3));
-    }
-    .contact-card .contact-title { 
-        color: var(--text-primary); 
-        font-weight: 800; 
-        font-size: 1.1rem; 
-        margin-bottom: 8px;
-        font-family: 'Poppins', sans-serif;
-    }
-    .contact-card .contact-info { 
-        color: var(--text-secondary); 
-        font-size: 0.92rem; 
-        line-height: 1.7; 
-    }
-    .contact-card .contact-info strong { 
-        color: var(--success); 
-        font-size: 1.15rem;
-        font-weight: 800;
-        text-shadow: 0 0 20px rgba(0, 217, 163, 0.5);
-    }
+    .contact-card .contact-icon { font-size: 2.2rem; margin-bottom: 12px; display: inline-block; filter: drop-shadow(0 4px 8px rgba(108, 99, 255, 0.3)); }
+    .contact-card .contact-title { color: var(--text-primary); font-weight: 800; font-size: 1.1rem; margin-bottom: 8px; font-family: 'Poppins', sans-serif; }
+    .contact-card .contact-info { color: var(--text-secondary); font-size: 0.92rem; line-height: 1.7; }
+    .contact-card .contact-info strong { color: var(--success); font-size: 1.15rem; font-weight: 800; text-shadow: 0 0 20px rgba(0, 217, 163, 0.5); }
     
     .emergency-badge { 
         display: inline-block; 
@@ -650,7 +548,6 @@ st.markdown("""
         box-shadow: 0 0 20px rgba(255, 71, 87, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
     }
     
-    /* ===== GALLERY CARDS ===== */
     .gallery-card { 
         background: linear-gradient(145deg, #14142B, #0E0E22);
         border: 1px solid var(--border);
@@ -659,63 +556,27 @@ st.markdown("""
         margin-bottom: 24px; 
         height: 100%;
         transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-        box-shadow: 
-            0 10px 30px rgba(0, 0, 0, 0.4),
-            inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06);
     }
     
     .gallery-card:hover { 
         border-color: var(--border-hover);
         transform: translateY(-12px) scale(1.02); 
-        box-shadow: 
-            0 35px 70px rgba(108, 99, 255, 0.4),
-            0 0 100px rgba(108, 99, 255, 0.2);
+        box-shadow: 0 35px 70px rgba(108, 99, 255, 0.4), 0 0 100px rgba(108, 99, 255, 0.2);
     }
     
-    .gallery-image { 
-        width: 100%; 
-        height: 200px; 
-        object-fit: cover; 
-        display: block;
-        transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-    
-    .gallery-card:hover .gallery-image {
-        transform: scale(1.1);
-    }
-    
+    .gallery-image { width: 100%; height: 200px; object-fit: cover; display: block; transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+    .gallery-card:hover .gallery-image { transform: scale(1.1); }
     .gallery-body { padding: 22px 24px 26px 24px; }
-    
     .gallery-category { 
-        display: inline-block; 
-        padding: 5px 14px; 
-        border-radius: 12px; 
-        font-size: 0.7rem; 
-        font-weight: 800; 
-        text-transform: uppercase; 
-        background: linear-gradient(135deg, rgba(108, 99, 255, 0.25), rgba(255, 101, 132, 0.25));
-        color: #A78BFA;
-        margin-bottom: 14px;
-        letter-spacing: 1.2px;
-        border: 1px solid rgba(108, 99, 255, 0.35);
+        display: inline-block; padding: 5px 14px; border-radius: 12px; font-size: 0.7rem; font-weight: 800; 
+        text-transform: uppercase; background: linear-gradient(135deg, rgba(108, 99, 255, 0.25), rgba(255, 101, 132, 0.25));
+        color: #A78BFA; margin-bottom: 14px; letter-spacing: 1.2px; border: 1px solid rgba(108, 99, 255, 0.35);
         box-shadow: 0 0 20px rgba(108, 99, 255, 0.2);
     }
+    .gallery-title { font-size: 1.25rem; font-weight: 800; color: var(--text-primary); margin-bottom: 10px; font-family: 'Poppins', sans-serif; }
+    .gallery-desc { font-size: 0.92rem; color: var(--text-secondary); line-height: 1.65; }
     
-    .gallery-title { 
-        font-size: 1.25rem; 
-        font-weight: 800; 
-        color: var(--text-primary); 
-        margin-bottom: 10px;
-        font-family: 'Poppins', sans-serif;
-    }
-    
-    .gallery-desc { 
-        font-size: 0.92rem; 
-        color: var(--text-secondary); 
-        line-height: 1.65; 
-    }
-    
-    /* ===== TABS - ULTRA PREMIUM 3D LIVE PILLS ===== */
     .stTabs [data-baseweb="tab-list"] { 
         gap: 12px !important; 
         background: linear-gradient(145deg, #0A0A1A, #14142B) !important; 
@@ -727,9 +588,7 @@ st.markdown("""
         box-shadow: 
             inset 0 3px 12px rgba(0, 0, 0, 0.5),
             inset 0 -1px 0 rgba(255, 255, 255, 0.05),
-            0 12px 40px rgba(0, 0, 0, 0.4),
-            0 0 60px rgba(108, 99, 255, 0.08);
-        position: relative;
+            0 12px 40px rgba(0, 0, 0, 0.4);
     }
     
     .stTabs [data-baseweb="tab"] { 
@@ -745,26 +604,9 @@ st.markdown("""
         transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
         position: relative !important;
         overflow: hidden !important;
-        box-shadow: 
-            0 4px 12px rgba(0, 0, 0, 0.35),
-            inset 0 1px 0 rgba(255, 255, 255, 0.06),
-            inset 0 -2px 0 rgba(0, 0, 0, 0.2) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 -2px 0 rgba(0, 0, 0, 0.2) !important;
         letter-spacing: 0.3px;
         outline: none !important;
-    }
-    
-    .stTabs [data-baseweb="tab"]::before {
-        content: "";
-        position: absolute;
-        top: 0; left: -100%;
-        width: 100%; height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(139, 127, 255, 0.3), transparent);
-        transition: left 0.7s ease;
-        pointer-events: none;
-    }
-    
-    .stTabs [data-baseweb="tab"]:hover::before {
-        left: 100%;
     }
     
     .stTabs [data-baseweb="tab"]:hover {
@@ -772,18 +614,7 @@ st.markdown("""
         color: #FFFFFF !important;
         border-color: rgba(108, 99, 255, 0.5) !important;
         transform: translateY(-3px) scale(1.02);
-        box-shadow: 
-            0 12px 28px rgba(108, 99, 255, 0.35),
-            0 0 40px rgba(108, 99, 255, 0.2),
-            inset 0 1px 0 rgba(255, 255, 255, 0.1),
-            inset 0 -2px 0 rgba(0, 0, 0, 0.2) !important;
-    }
-    
-    .stTabs [data-baseweb="tab"]:active {
-        transform: translateY(-1px) scale(0.99);
-        box-shadow: 
-            0 4px 12px rgba(108, 99, 255, 0.4),
-            inset 0 3px 6px rgba(0, 0, 0, 0.35) !important;
+        box-shadow: 0 12px 28px rgba(108, 99, 255, 0.35), 0 0 40px rgba(108, 99, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
     }
     
     .stTabs [aria-selected="true"] { 
@@ -802,7 +633,6 @@ st.markdown("""
             box-shadow: 
                 0 12px 32px rgba(108, 99, 255, 0.7),
                 0 0 50px rgba(108, 99, 255, 0.4),
-                0 0 100px rgba(108, 99, 255, 0.2),
                 inset 0 -3px 0 rgba(0, 0, 0, 0.25),
                 inset 0 1px 0 rgba(255, 255, 255, 0.4);
         }
@@ -810,7 +640,6 @@ st.markdown("""
             box-shadow: 
                 0 12px 40px rgba(108, 99, 255, 0.9),
                 0 0 70px rgba(108, 99, 255, 0.6),
-                0 0 130px rgba(108, 99, 255, 0.3),
                 inset 0 -3px 0 rgba(0, 0, 0, 0.25),
                 inset 0 1px 0 rgba(255, 255, 255, 0.5);
         }
@@ -819,16 +648,11 @@ st.markdown("""
     .stTabs [aria-selected="true"]::after {
         content: "";
         position: absolute;
-        top: 8px;
-        right: 10px;
-        width: 8px;
-        height: 8px;
+        top: 8px; right: 10px;
+        width: 8px; height: 8px;
         background: #2DFFBF;
         border-radius: 50%;
-        box-shadow: 
-            0 0 10px #2DFFBF,
-            0 0 20px #2DFFBF,
-            0 0 30px rgba(45, 255, 191, 0.5);
+        box-shadow: 0 0 10px #2DFFBF, 0 0 20px #2DFFBF;
         animation: livePulse 1.5s ease-in-out infinite;
     }
     
@@ -843,7 +667,6 @@ st.markdown("""
         display: none !important; 
     }
     
-    /* ===== BUTTONS - 3D PREMIUM ===== */
     .stButton > button { 
         border-radius: 14px !important; 
         font-weight: 700 !important; 
@@ -853,42 +676,15 @@ st.markdown("""
         color: var(--text-primary) !important;
         transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
         padding: 12px 24px !important;
-        position: relative !important;
-        overflow: hidden !important;
-        box-shadow: 
-            0 6px 18px rgba(0, 0, 0, 0.4),
-            inset 0 1px 0 rgba(255, 255, 255, 0.08),
-            inset 0 -2px 0 rgba(0, 0, 0, 0.2) !important;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 -2px 0 rgba(0, 0, 0, 0.2) !important;
         letter-spacing: 0.3px;
-    }
-    
-    .stButton > button::before {
-        content: "";
-        position: absolute;
-        top: 0; left: -100%;
-        width: 100%; height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(108, 99, 255, 0.3), transparent);
-        transition: left 0.6s ease;
-    }
-    
-    .stButton > button:hover::before {
-        left: 100%;
     }
     
     .stButton > button:hover {
         border-color: var(--border-hover) !important;
         transform: translateY(-3px) !important;
-        box-shadow: 
-            0 14px 32px rgba(108, 99, 255, 0.35),
-            0 0 50px rgba(108, 99, 255, 0.15),
-            inset 0 1px 0 rgba(255, 255, 255, 0.1),
-            inset 0 -2px 0 rgba(0, 0, 0, 0.2) !important;
+        box-shadow: 0 14px 32px rgba(108, 99, 255, 0.35), 0 0 50px rgba(108, 99, 255, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
         background: linear-gradient(145deg, #1A1A38, #14142B) !important;
-    }
-    
-    .stButton > button:active {
-        transform: translateY(-1px) scale(0.99) !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), inset 0 3px 6px rgba(0, 0, 0, 0.3) !important;
     }
     
     .stButton > button[kind="primary"] { 
@@ -898,28 +694,15 @@ st.markdown("""
         padding: 16px 32px !important; 
         font-weight: 800 !important;
         font-size: 1.02rem !important;
-        box-shadow: 
-            0 12px 32px rgba(108, 99, 255, 0.6),
-            0 0 60px rgba(108, 99, 255, 0.3),
-            inset 0 -3px 0 rgba(0, 0, 0, 0.25),
-            inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+        box-shadow: 0 12px 32px rgba(108, 99, 255, 0.6), 0 0 60px rgba(108, 99, 255, 0.3), inset 0 -3px 0 rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
         letter-spacing: 0.8px;
         text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     }
     
     .stButton > button[kind="primary"]:hover {
         transform: translateY(-4px) scale(1.02) !important;
-        box-shadow: 
-            0 20px 45px rgba(108, 99, 255, 0.8),
-            0 0 80px rgba(108, 99, 255, 0.4),
-            inset 0 -3px 0 rgba(0, 0, 0, 0.25),
-            inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+        box-shadow: 0 20px 45px rgba(108, 99, 255, 0.8), 0 0 80px rgba(108, 99, 255, 0.4), inset 0 -3px 0 rgba(0, 0, 0, 0.25) !important;
         background: linear-gradient(145deg, #A78BFA, #8B7FFF 50%, #6C63FF) !important;
-    }
-    
-    .stButton > button[kind="primary"]:active {
-        transform: translateY(-1px) scale(0.98) !important;
-        box-shadow: 0 6px 16px rgba(108, 99, 255, 0.6), inset 0 4px 8px rgba(0, 0, 0, 0.3) !important;
     }
     
     .stDownloadButton > button { 
@@ -931,42 +714,17 @@ st.markdown("""
         font-weight: 800 !important;
         font-size: 1.02rem !important;
         font-family: 'Poppins', sans-serif;
-        box-shadow: 
-            0 12px 32px rgba(0, 217, 163, 0.55),
-            0 0 60px rgba(0, 217, 163, 0.25),
-            inset 0 -3px 0 rgba(0, 0, 0, 0.2),
-            inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+        box-shadow: 0 12px 32px rgba(0, 217, 163, 0.55), 0 0 60px rgba(0, 217, 163, 0.25), inset 0 -3px 0 rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
         transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
         letter-spacing: 0.5px;
         text-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-        position: relative !important;
-        overflow: hidden !important;
-    }
-    
-    .stDownloadButton > button::before {
-        content: "";
-        position: absolute;
-        top: 0; left: -100%;
-        width: 100%; height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
-        transition: left 0.6s ease;
-    }
-    
-    .stDownloadButton > button:hover::before {
-        left: 100%;
     }
     
     .stDownloadButton > button:hover {
         transform: translateY(-4px) scale(1.02) !important;
-        box-shadow: 
-            0 20px 45px rgba(0, 217, 163, 0.75),
-            0 0 80px rgba(0, 217, 163, 0.4),
-            inset 0 -3px 0 rgba(0, 0, 0, 0.2),
-            inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
-        background: linear-gradient(145deg, #4DFFD0, #2DFFBF 50%, #00D9A3) !important;
+        box-shadow: 0 20px 45px rgba(0, 217, 163, 0.75), 0 0 80px rgba(0, 217, 163, 0.4) !important;
     }
     
-    /* ===== INPUTS ===== */
     .stNumberInput input, 
     .stTextInput input { 
         background: linear-gradient(145deg, #0E0E22, #14142B) !important; 
@@ -978,18 +736,13 @@ st.markdown("""
         font-family: 'Inter', sans-serif;
         font-size: 0.98rem;
         font-weight: 500;
-        box-shadow: 
-            inset 0 2px 6px rgba(0, 0, 0, 0.3),
-            0 4px 12px rgba(0, 0, 0, 0.2);
+        box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
     }
     
     .stNumberInput input:focus, 
     .stTextInput input:focus { 
         border-color: var(--primary) !important;
-        box-shadow: 
-            0 0 0 4px rgba(108, 99, 255, 0.2),
-            0 0 30px rgba(108, 99, 255, 0.3),
-            inset 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+        box-shadow: 0 0 0 4px rgba(108, 99, 255, 0.2), 0 0 30px rgba(108, 99, 255, 0.3), inset 0 2px 6px rgba(0, 0, 0, 0.2) !important;
         background: linear-gradient(145deg, #14142B, #1A1A38) !important;
         transform: translateY(-1px);
     }
@@ -1003,24 +756,13 @@ st.markdown("""
         box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.3);
     }
     
-    .stSelectbox > div > div:hover {
-        border-color: var(--border-hover) !important;
-        box-shadow: 
-            inset 0 2px 6px rgba(0, 0, 0, 0.3),
-            0 0 20px rgba(108, 99, 255, 0.2);
-    }
-    
-    /* ===== FORMS ===== */
     div[data-testid="stForm"] { 
         border: 1px solid var(--border) !important; 
         border-radius: 24px !important; 
         padding: 35px !important; 
         background: linear-gradient(145deg, rgba(20, 20, 43, 0.7), rgba(14, 14, 34, 0.7)) !important;
         backdrop-filter: blur(20px);
-        box-shadow: 
-            0 20px 60px rgba(0, 0, 0, 0.5),
-            inset 0 1px 0 rgba(255, 255, 255, 0.06),
-            0 0 80px rgba(108, 99, 255, 0.1);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 0 80px rgba(108, 99, 255, 0.1);
     }
     
     label { 
@@ -1031,63 +773,13 @@ st.markdown("""
         letter-spacing: 0.4px;
     }
     
-    /* ===== RESULT BOXES ===== */
-    .result-box { 
-        padding: 28px; 
-        border-radius: 18px; 
-        margin-top: 20px; 
-        border-left: 5px solid;
-        backdrop-filter: blur(15px);
-    }
-    
-    .result-high { 
-        background: linear-gradient(135deg, rgba(255, 71, 87, 0.18), rgba(255, 101, 132, 0.1)); 
-        border-left-color: #FF4757;
-        box-shadow: 
-            0 12px 32px rgba(255, 71, 87, 0.3),
-            inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    }
-    
-    .result-low { 
-        background: linear-gradient(135deg, rgba(0, 217, 163, 0.18), rgba(0, 217, 163, 0.08)); 
-        border-left-color: #00D9A3;
-        box-shadow: 
-            0 12px 32px rgba(0, 217, 163, 0.3),
-            inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    }
-    
-    .result-title { 
-        font-size: 1.4rem; 
-        font-weight: 800; 
-        margin-bottom: 12px;
-        font-family: 'Poppins', sans-serif;
-    }
-    
-    .result-prob { 
-        font-size: 2.4rem; 
-        font-weight: 900; 
-        margin: 12px 0;
-        font-family: 'Poppins', sans-serif;
-        letter-spacing: -1.5px;
-        filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
-    }
-    
-    .result-desc { 
-        font-size: 0.98rem; 
-        color: var(--text-secondary); 
-        line-height: 1.7;
-    }
-    
     [data-testid="stDataFrame"] {
         border-radius: 18px !important;
         overflow: hidden;
         border: 1px solid var(--border) !important;
-        box-shadow: 
-            0 10px 30px rgba(0, 0, 0, 0.4),
-            inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
     }
     
-    /* ===== LOADING SPINNER ===== */
     [data-testid="stStatusWidget"] {
         position: fixed !important; 
         top: 50% !important; 
@@ -1099,17 +791,8 @@ st.markdown("""
         border-radius: 26px !important; 
         border: 2px solid var(--primary) !important; 
         min-width: 300px !important;
-        box-shadow: 
-            0 30px 80px rgba(108, 99, 255, 0.6),
-            0 0 120px rgba(108, 99, 255, 0.3),
-            inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+        box-shadow: 0 30px 80px rgba(108, 99, 255, 0.6), 0 0 120px rgba(108, 99, 255, 0.3) !important;
         backdrop-filter: blur(30px);
-        animation: pulseGlow 2s ease infinite;
-    }
-    
-    @keyframes pulseGlow {
-        0%, 100% { box-shadow: 0 30px 80px rgba(108, 99, 255, 0.6), 0 0 120px rgba(108, 99, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1); }
-        50% { box-shadow: 0 30px 80px rgba(108, 99, 255, 0.9), 0 0 160px rgba(108, 99, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1); }
     }
     
     [data-testid="stStatusWidget"] span { 
@@ -1117,35 +800,13 @@ st.markdown("""
         font-weight: 800 !important; 
         font-size: 17px !important;
         font-family: 'Poppins', sans-serif;
-        letter-spacing: 0.8px;
     }
     
     .stAlert {
         border-radius: 16px !important;
         border-left-width: 5px !important;
         backdrop-filter: blur(15px);
-        box-shadow: 
-            0 8px 24px rgba(0, 0, 0, 0.3),
-            inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
-    }
-    
-    .streamlit-expanderHeader {
-        background: linear-gradient(145deg, #14142B, #0E0E22) !important;
-        border-radius: 14px !important;
-        color: var(--text-primary) !important;
-        font-weight: 700 !important;
-        border: 1px solid var(--border) !important;
-        box-shadow: 
-            0 6px 18px rgba(0, 0, 0, 0.3),
-            inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
-        transition: all 0.3s ease;
-    }
-    
-    .streamlit-expanderHeader:hover {
-        border-color: var(--border-hover) !important;
-        box-shadow: 
-            0 10px 24px rgba(108, 99, 255, 0.2),
-            inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
     }
     
     [data-testid="stMetric"] {
@@ -1153,17 +814,12 @@ st.markdown("""
         border: 1px solid var(--border) !important;
         border-radius: 16px !important;
         padding: 20px !important;
-        box-shadow: 
-            0 8px 24px rgba(0, 0, 0, 0.3),
-            inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
-        transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
     }
     
     [data-testid="stMetric"]:hover {
         transform: translateY(-4px);
-        box-shadow: 
-            0 16px 40px rgba(108, 99, 255, 0.25),
-            0 0 60px rgba(108, 99, 255, 0.1) !important;
+        box-shadow: 0 16px 40px rgba(108, 99, 255, 0.25), 0 0 60px rgba(108, 99, 255, 0.1) !important;
         border-color: var(--border-hover) !important;
     }
     
@@ -1174,18 +830,13 @@ st.markdown("""
     
     .fade-in { animation: fadeInUp 0.7s cubic-bezier(0.34, 1.56, 0.64, 1); }
     
-    /* ===== MOBILE RESPONSIVE ===== */
     @media (max-width: 768px) {
         .hero-header { padding: 35px 28px; border-radius: 22px; }
         .hero-title { font-size: 2.1rem; letter-spacing: -1px; }
         .hero-subtitle { font-size: 1rem; }
         .metric-value { font-size: 2rem; }
         .section-header { font-size: 1.4rem; }
-        .stTabs [data-baseweb="tab"] { 
-            height: 42px !important; 
-            padding: 0 14px !important; 
-            font-size: 0.82rem !important; 
-        }
+        .stTabs [data-baseweb="tab"] { height: 42px !important; padding: 0 14px !important; font-size: 0.82rem !important; }
         .st-key-top_settings_btn { top: 14px !important; right: 14px !important; }
         .st-key-top_chat_btn { top: 14px !important; right: 78px !important; }
         .st-key-top_email_btn { top: 14px !important; right: 142px !important; }
@@ -1193,19 +844,8 @@ st.markdown("""
         .st-key-top_settings_btn button,
         .st-key-top_chat_btn button,
         .st-key-top_email_btn button,
-        .st-key-top_web_btn button { 
-            width: 46px !important; 
-            height: 46px !important; 
-            font-size: 19px !important;
-            border-radius: 14px !important;
-        }
+        .st-key-top_web_btn button { width: 46px !important; height: 46px !important; font-size: 19px !important; border-radius: 14px !important; }
         div[data-testid="stForm"] { padding: 22px !important; border-radius: 20px !important; }
-        .stButton > button, 
-        .stButton > button[kind="primary"],
-        .stDownloadButton > button {
-            padding: 12px 20px !important;
-            font-size: 0.9rem !important;
-        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1248,14 +888,14 @@ st.markdown(f"""
 # MAIN TABS
 # ========================================
 if is_patient:
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
-        "📈 Overview", "🩸 Diabetes", "❤️ Heart Disease", "🧠 Stroke",
-        "🫘 Kidney", "🧬 Thyroid", "🩺 Live Prediction", "🏥 Gallery", "📞 Contacts"])
-    tab10 = None
-else:
     tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
         "📈 Overview", "🩸 Diabetes", "❤️ Heart Disease", "🧠 Stroke",
-        "🫘 Kidney", "🧬 Thyroid", "🩺 Live Prediction", "🏥 Gallery", "📞 Contacts", "📜 History"])
+        "🫘 Kidney", "🧬 Thyroid", "🩺 Live Prediction", "🔍 Explainable AI", "🏥 Gallery", "📞 Contacts"])
+    tab11 = None
+else:
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
+        "📈 Overview", "🩸 Diabetes", "❤️ Heart Disease", "🧠 Stroke",
+        "🫘 Kidney", "🧬 Thyroid", "🩺 Live Prediction", "🔍 Explainable AI", "🏥 Gallery", "📞 Contacts", "📜 History"])
 
 
 # ========================================
@@ -1543,7 +1183,7 @@ with tab5:
 
 
 # ========================================
-# TAB 6: THYROID DISEASE (90.36% accuracy)
+# TAB 6: THYROID DISEASE
 # ========================================
 with tab6:
     st.markdown('<div class="section-header">🧬 Thyroid Disease Prediction</div>', unsafe_allow_html=True)
@@ -1857,9 +1497,153 @@ with tab7:
 
 
 # ========================================
-# TAB 8: GALLERY
+# TAB 8: EXPLAINABLE AI (SHAP)
 # ========================================
 with tab8:
+    st.markdown('<div class="section-header">🔍 Explainable AI (SHAP Analysis)</div>', unsafe_allow_html=True)
+    
+    st.markdown("""
+    **SHAP** (SHapley Additive exPlanations) shows exactly how the AI made its decision. 
+    For every prediction, SHAP identifies **which features contributed most** to the outcome. 
+    This builds **trust** in medical AI.
+    """)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown('<div class="metric-card"><div class="metric-label">Purpose</div><div class="metric-value" style="font-size: 1.3rem;">Trust</div><p style="color: #A8A8C0; font-size: 0.85rem; margin-top: 8px;">For doctors to understand</p></div>', unsafe_allow_html=True)
+    with col2:
+        st.markdown('<div class="metric-card"><div class="metric-label">Method</div><div class="metric-value" style="font-size: 1.3rem;">Feature Importance</div><p style="color: #A8A8C0; font-size: 0.85rem; margin-top: 8px;">Weight per feature</p></div>', unsafe_allow_html=True)
+    with col3:
+        st.markdown('<div class="metric-card"><div class="metric-label">Coverage</div><div class="metric-value" style="font-size: 1.3rem;">4 Diseases</div><p style="color: #A8A8C0; font-size: 0.85rem; margin-top: 8px;">Diabetes, Heart, Stroke, Kidney</p></div>', unsafe_allow_html=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("---")
+    
+    st.markdown("### 🏥 Select Disease to View SHAP Analysis")
+    shap_disease = st.selectbox(
+        "Disease:",
+        ["🩸 Diabetes", "❤️ Heart Disease", "🧠 Stroke", "🫘 Kidney Disease"],
+        key="shap_disease_select"
+    )
+    
+    st.markdown("---")
+    
+    shap_files = {
+        "🩸 Diabetes": {
+            "plot": "shap_diabetes.png",
+            "csv": "shap_diabetes_importance.csv",
+            "accuracy": "62.38%",
+            "patients": "100,244"
+        },
+        "❤️ Heart Disease": {
+            "plot": "shap_heart_disease.png",
+            "csv": "shap_heart_disease_importance.csv",
+            "accuracy": "88.52%",
+            "patients": "303"
+        },
+        "🧠 Stroke": {
+            "plot": "shap_stroke.png",
+            "csv": "shap_stroke_importance.csv",
+            "accuracy": "72.90%",
+            "patients": "5,109"
+        },
+        "🫘 Kidney Disease": {
+            "plot": "shap_kidney_disease.png",
+            "csv": "shap_kidney_disease_importance.csv",
+            "accuracy": "100%",
+            "patients": "400"
+        }
+    }
+    
+    info = shap_files[shap_disease]
+    
+    col_i1, col_i2, col_i3 = st.columns(3)
+    with col_i1:
+        st.metric("Disease", shap_disease)
+    with col_i2:
+        st.metric("Model Accuracy", info["accuracy"])
+    with col_i3:
+        st.metric("Training Data", f"{info['patients']} patients")
+    
+    st.markdown("---")
+    
+    col_plot, col_feat = st.columns([1.2, 1])
+    
+    with col_plot:
+        st.markdown("#### 📊 SHAP Summary Plot")
+        st.markdown("*Red = high impact, Blue = low impact.*")
+        
+        if os.path.exists(info["plot"]):
+            st.image(info["plot"], width='stretch')
+        else:
+            st.warning(f"⚠️ SHAP plot not found: `{info['plot']}`")
+    
+    with col_feat:
+        st.markdown("#### 🎯 Top Feature Importance")
+        
+        if os.path.exists(info["csv"]):
+            try:
+                df_shap = pd.read_csv(info["csv"])
+                
+                if 'feature' in df_shap.columns and 'importance' in df_shap.columns:
+                    df_shap = df_shap.sort_values('importance', ascending=False).head(10)
+                elif df_shap.shape[1] >= 2:
+                    df_shap.columns = ['feature', 'importance']
+                    df_shap = df_shap.sort_values('importance', ascending=False).head(10)
+                
+                for idx, row in df_shap.iterrows():
+                    feature_name = str(row['feature']).replace('_', ' ').title()
+                    importance = float(row['importance'])
+                    max_imp = float(df_shap['importance'].max())
+                    bar_width = (importance / max_imp) * 100 if max_imp > 0 else 0
+                    
+                    st.markdown(f"""
+                    <div style="margin-bottom: 14px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                            <span style="color: #D0D0E8; font-weight: 600; font-size: 0.9rem;">{feature_name}</span>
+                            <span style="color: #8B7FFF; font-weight: 700; font-size: 0.85rem;">{importance:.4f}</span>
+                        </div>
+                        <div style="background: rgba(108, 99, 255, 0.1); border-radius: 8px; height: 8px; overflow: hidden;">
+                            <div style="height: 100%; width: {bar_width}%; background: linear-gradient(90deg, #6C63FF, #FF6584); border-radius: 8px;"></div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            except Exception as e:
+                st.error(f"Error reading CSV: {e}")
+        else:
+            st.warning(f"⚠️ Feature importance file not found: `{info['csv']}`")
+    
+    st.markdown("---")
+    
+    st.markdown("#### 📖 What Does This Mean?")
+    
+    st.markdown("""
+    <div class="feature-card fade-in">
+        <div class="feature-title">🔴 High Impact (Red)</div>
+        <div class="feature-desc">This feature contributes more to the prediction. If it changes, the prediction may change significantly.</div>
+    </div>
+    <div class="feature-card fade-in">
+        <div class="feature-title">🔵 Low Impact (Blue)</div>
+        <div class="feature-desc">This feature contributes less to the prediction. It has minimal effect on the outcome.</div>
+    </div>
+    <div class="feature-card fade-in">
+        <div class="feature-title">🎯 Feature Importance Bars</div>
+        <div class="feature-desc">The bars above show how important each feature is. Top bar = most important feature.</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    st.info("💡 **For Doctors:** When viewing any patient's prediction, this SHAP analysis helps you understand which features the AI weighted most. This supports your clinical decision-making.")
+    
+    st.success("✅ **Explainable AI** — A critical feature for building trust in medical AI!")
+
+
+# ========================================
+# TAB 9: GALLERY
+# ========================================
+with tab9:
     st.markdown('<div class="section-header">🏥 Medical Knowledge Gallery</div>', unsafe_allow_html=True)
     gallery_items = [
         {"category": "CARDIOLOGY", "title": "Blood Pressure Monitoring", "desc": "High BP is a silent killer.", "image": "https://images.unsplash.com/photo-1579154204601-01588f351e67?w=800", "emoji": "💓", "query": "My blood pressure is high, what should I do?"},
@@ -1885,9 +1669,9 @@ with tab8:
 
 
 # ========================================
-# TAB 9: CONTACTS
+# TAB 10: CONTACTS
 # ========================================
-with tab9:
+with tab10:
     st.markdown('<div class="section-header">📞 Contacts & Helpline</div>', unsafe_allow_html=True)
     st.markdown("##### 🚨 Emergency Numbers")
     col1, col2, col3, col4 = st.columns(4)
@@ -1905,10 +1689,10 @@ with tab9:
 
 
 # ========================================
-# TAB 10: HISTORY
+# TAB 11: HISTORY
 # ========================================
-if tab10 is not None:
-    with tab10:
+if tab11 is not None:
+    with tab11:
         st.markdown('<div class="section-header">📜 My Prediction History</div>', unsafe_allow_html=True)
         stats = hist.get_statistics(user_email=user_email)
         col1, col2, col3, col4 = st.columns(4)
