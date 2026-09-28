@@ -116,18 +116,9 @@ def load_kidney_model():
 def load_thyroid_model():
     import tensorflow as tf
     try:
-        features = [
-            'age', 'sex', 'TSH', 'T3', 'TT4', 'T4U', 'FTI', 
-            'on_thyroxine', 'query_on_thyroxine', 'on_antithyroid_meds', 
-            'sick', 'pregnant', 'thyroid_surgery', 'I131_treatment', 
-            'query_hypothyroid', 'query_hyperthyroid', 'lithium', 
-            'goitre', 'tumor', 'hypopituitary', 'psych', 
-            'TSH_measured', 'T3_measured', 'TT4_measured', 
-            'T4U_measured', 'FTI_measured', 'TBG_measured'
-        ]
         return {'model': tf.keras.models.load_model('thyroid_dp_model.keras'),
                 'scaler': pickle.load(open('scaler_thyroid.pkl', 'rb')),
-                'features': features}
+                'features': pickle.load(open('thyroid_features.pkl', 'rb'))}
     except Exception:
         return None
 
@@ -324,7 +315,7 @@ with tab1:
     with col2: ui.animated_metric_card("❤️", "Heart Disease", "88.52%", "303 patients", "⭐ Best", "warning")
     with col3: ui.animated_metric_card("🧠", "Stroke", "72.90%", "5,109 patients", "80% Recall", "info")
     with col4: ui.animated_metric_card("🫘", "Kidney", "100%", "400 patients", "🎯 Excellent", "success")
-    with col5: ui.animated_metric_card("🧬", "Thyroid", "54.67%", "3,000 patients", "Baseline", "info")
+    with col5: ui.animated_metric_card("🧬", "Thyroid", "90.36%", "8,865 patients", "⭐ Improved", "success")
     
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown('<div class="section-header">📊 Model Comparison</div>', unsafe_allow_html=True)
@@ -332,7 +323,7 @@ with tab1:
     with col_a:
         comparison = pd.DataFrame({
             "Disease": ["Diabetes", "Heart Disease", "Stroke", "Kidney Disease", "Thyroid"],
-            "Accuracy (%)": [62.38, 88.52, 72.90, 100.00, 54.67],
+            "Accuracy (%)": [62.38, 88.52, 72.90, 100.00, 90.36],
             "Data Shared": ["0 B"]*5, "Privacy": ["✅ DP"]*5})
         st.dataframe(comparison, width='stretch', hide_index=True)
     with col_b:
@@ -596,13 +587,13 @@ with tab5:
 
 
 # ========================================
-# TAB 6: THYROID DISEASE
+# TAB 6: THYROID DISEASE (UPDATED with 90.36% accuracy)
 # ========================================
 with tab6:
     st.markdown('<div class="section-header">🧬 Thyroid Disease Prediction</div>', unsafe_allow_html=True)
     col_info1, col_info2, col_info3 = st.columns(3)
-    with col_info1: st.metric("Accuracy", "54.67%", "Baseline (Synthetic)")
-    with col_info2: st.metric("Training Data", "3,000 patients")
+    with col_info1: st.metric("Accuracy", "90.36%", "⭐ Real Data")
+    with col_info2: st.metric("Training Data", "8,865 patients")
     with col_info3: st.metric("Privacy", "✅ DP Enabled")
     st.markdown("---")
     
@@ -617,6 +608,7 @@ with tab6:
             t_tt4 = st.number_input("TT4 Level", min_value=0.0, max_value=30.0, value=8.0, step=0.1, key="t_tt4")
             t_t4u = st.number_input("T4U Level", min_value=0.0, max_value=3.0, value=1.0, step=0.1, key="t_t4u")
             t_fti = st.number_input("FTI Level", min_value=0.0, max_value=30.0, value=8.0, step=0.1, key="t_fti")
+            t_tbg = st.number_input("TBG Level", min_value=0.0, max_value=100.0, value=0.0, step=0.1, key="t_tbg")
             t_on_thy = st.selectbox("On Thyroxine", ["No", "Yes"], key="t_on_thy")
             t_query_thy = st.selectbox("Query on Thyroxine", ["No", "Yes"], key="t_query_thy")
             t_anti_thy = st.selectbox("On Antithyroid Meds", ["No", "Yes"], key="t_anti_thy")
@@ -646,23 +638,26 @@ with tab6:
         lp = st.empty()
         with lp.container(): ui.prediction_loading_animation("Thyroid")
         model = load_thyroid_model()
-        data = {'age': float(t_age), 'sex': 1.0 if t_sex == "Male" else 0.0,
-                'TSH': float(t_tsh), 'T3': float(t_t3), 'TT4': float(t_tt4),
-                'T4U': float(t_t4u), 'FTI': float(t_fti),
-                'on_thyroxine': 1.0 if t_on_thy == "Yes" else 0.0,
-                'query_on_thyroxine': 1.0 if t_query_thy == "Yes" else 0.0,
-                'on_antithyroid_meds': 1.0 if t_anti_thy == "Yes" else 0.0,
-                'sick': 1.0 if t_sick == "Yes" else 0.0, 'pregnant': 1.0 if t_pregnant == "Yes" else 0.0,
-                'thyroid_surgery': 1.0 if t_surgery == "Yes" else 0.0,
-                'I131_treatment': 1.0 if t_i131 == "Yes" else 0.0,
-                'query_hypothyroid': 1.0 if t_query_hypo == "Yes" else 0.0,
-                'query_hyperthyroid': 1.0 if t_query_hyper == "Yes" else 0.0,
-                'lithium': 1.0 if t_lithium == "Yes" else 0.0, 'goitre': 1.0 if t_goitre == "Yes" else 0.0,
-                'tumor': 1.0 if t_tumor == "Yes" else 0.0, 'hypopituitary': 1.0 if t_hypopit == "Yes" else 0.0,
-                'psych': 1.0 if t_psych == "Yes" else 0.0, 'TSH_measured': 1.0 if t_tsh_meas == "Yes" else 0.0,
-                'T3_measured': 1.0 if t_t3_meas == "Yes" else 0.0, 'TT4_measured': 1.0 if t_tt4_meas == "Yes" else 0.0,
-                'T4U_measured': 1.0 if t_t4u_meas == "Yes" else 0.0, 'FTI_measured': 1.0 if t_fti_meas == "Yes" else 0.0,
-                'TBG_measured': 1.0 if t_tbg_meas == "Yes" else 0.0}
+        data = {
+            'age': float(t_age), 'sex': 1.0 if t_sex == "Male" else 0.0,
+            'on_thyroxine': 1.0 if t_on_thy == "Yes" else 0.0,
+            'query_on_thyroxine': 1.0 if t_query_thy == "Yes" else 0.0,
+            'on_antithyroid_meds': 1.0 if t_anti_thy == "Yes" else 0.0,
+            'sick': 1.0 if t_sick == "Yes" else 0.0, 'pregnant': 1.0 if t_pregnant == "Yes" else 0.0,
+            'thyroid_surgery': 1.0 if t_surgery == "Yes" else 0.0,
+            'I131_treatment': 1.0 if t_i131 == "Yes" else 0.0,
+            'query_hypothyroid': 1.0 if t_query_hypo == "Yes" else 0.0,
+            'query_hyperthyroid': 1.0 if t_query_hyper == "Yes" else 0.0,
+            'lithium': 1.0 if t_lithium == "Yes" else 0.0, 'goitre': 1.0 if t_goitre == "Yes" else 0.0,
+            'tumor': 1.0 if t_tumor == "Yes" else 0.0, 'hypopituitary': 1.0 if t_hypopit == "Yes" else 0.0,
+            'psych': 1.0 if t_psych == "Yes" else 0.0, 'TSH_measured': 1.0 if t_tsh_meas == "Yes" else 0.0,
+            'TSH': float(t_tsh),
+            'T3_measured': 1.0 if t_t3_meas == "Yes" else 0.0, 'T3': float(t_t3),
+            'TT4_measured': 1.0 if t_tt4_meas == "Yes" else 0.0, 'TT4': float(t_tt4),
+            'T4U_measured': 1.0 if t_t4u_meas == "Yes" else 0.0, 'T4U': float(t_t4u),
+            'FTI_measured': 1.0 if t_fti_meas == "Yes" else 0.0, 'FTI': float(t_fti),
+            'TBG_measured': 1.0 if t_tbg_meas == "Yes" else 0.0, 'TBG': float(t_tbg)
+        }
         prob = predict_with_model(model, data); lp.empty()
         
         if prob is not None:
@@ -674,7 +669,7 @@ with tab6:
             hist.save_prediction("Thyroid", prob, "High Risk" if prob > 0.5 else "Low Risk",
                 f"Patient: {pat_info['Patient Name']}, TSH: {t_tsh}, T3: {t_t3}", user_email=user_email)
             report_data = dict(pat_info)
-            report_data.update({"Age": t_age, "Gender": t_sex, "TSH": t_tsh, "T3": t_t3, "TT4": t_tt4, "T4U": t_t4u, "FTI": t_fti})
+            report_data.update({"Age": t_age, "Gender": t_sex, "TSH": t_tsh, "T3": t_t3, "TT4": t_tt4, "T4U": t_t4u, "FTI": t_fti, "TBG": t_tbg})
             pdf_bytes = generate_medical_report("Thyroid Disease", report_data,
                 {"probability": prob, "is_high_risk": prob > 0.5, "summary": f"Patient has {pct:.1f}% probability of thyroid disease."})
             st.download_button("📄  Download PDF Report", data=pdf_bytes,
@@ -807,6 +802,7 @@ with tab7:
                 api_t_tt4 = st.number_input("TT4 Level", min_value=0.0, max_value=30.0, value=8.0, step=0.1, key="api_t_tt4")
                 api_t_t4u = st.number_input("T4U Level", min_value=0.0, max_value=3.0, value=1.0, step=0.1, key="api_t_t4u")
                 api_t_fti = st.number_input("FTI Level", min_value=0.0, max_value=30.0, value=8.0, step=0.1, key="api_t_fti")
+                api_t_tbg = st.number_input("TBG Level", min_value=0.0, max_value=100.0, value=0.0, step=0.1, key="api_t_tbg")
                 api_t_on_thy = st.selectbox("On Thyroxine", ["No", "Yes"], key="api_t_on_thy")
             with col2:
                 api_t_query_thy = st.selectbox("Query on Thyroxine", ["No", "Yes"], key="api_t_query_thy")
@@ -826,11 +822,12 @@ with tab7:
                 api_t_tsh_meas = st.selectbox("TSH Measured", ["No", "Yes"], key="api_t_tsh_meas")
                 api_t_t3_meas = st.selectbox("T3 Measured", ["No", "Yes"], key="api_t_t3_meas")
                 api_t_tt4_meas = st.selectbox("TT4 Measured", ["No", "Yes"], key="api_t_tt4_meas")
+                api_t_tbg_meas = st.selectbox("TBG Measured", ["No", "Yes"], key="api_t_tbg_meas")
             st.markdown("<br>", unsafe_allow_html=True)
             submitted = st.form_submit_button("🚀 Get Prediction", type="primary", width='stretch')
-        payload = {"age": api_t_age, "sex": 1 if api_t_sex == "Male" else 0, "TSH": api_t_tsh, "T3": api_t_t3, "TT4": api_t_tt4, "T4U": api_t_t4u, "FTI": api_t_fti, "on_thyroxine": 1 if api_t_on_thy == "Yes" else 0, "query_on_thyroxine": 1 if api_t_query_thy == "Yes" else 0, "on_antithyroid_meds": 1 if api_t_anti_thy == "Yes" else 0, "sick": 1 if api_t_sick == "Yes" else 0, "pregnant": 1 if api_t_pregnant == "Yes" else 0, "thyroid_surgery": 1 if api_t_surgery == "Yes" else 0, "I131_treatment": 1 if api_t_i131 == "Yes" else 0, "query_hypothyroid": 1 if api_t_query_hypo == "Yes" else 0, "query_hyperthyroid": 1 if api_t_query_hyper == "Yes" else 0, "lithium": 1 if api_t_lithium == "Yes" else 0, "goitre": 1 if api_t_goitre == "Yes" else 0, "tumor": 1 if api_t_tumor == "Yes" else 0, "hypopituitary": 1 if api_t_hypopit == "Yes" else 0, "psych": 1 if api_t_psych == "Yes" else 0, "TSH_measured": 1 if api_t_tsh_meas == "Yes" else 0, "T3_measured": 1 if api_t_t3_meas == "Yes" else 0, "TT4_measured": 1 if api_t_tt4_meas == "Yes" else 0, "T4U_measured": 1, "FTI_measured": 1, "TBG_measured": 0}
+        payload = {"age": api_t_age, "sex": 1 if api_t_sex == "Male" else 0, "TSH": api_t_tsh, "T3": api_t_t3, "TT4": api_t_tt4, "T4U": api_t_t4u, "FTI": api_t_fti, "TBG": api_t_tbg, "on_thyroxine": 1 if api_t_on_thy == "Yes" else 0, "query_on_thyroxine": 1 if api_t_query_thy == "Yes" else 0, "on_antithyroid_meds": 1 if api_t_anti_thy == "Yes" else 0, "sick": 1 if api_t_sick == "Yes" else 0, "pregnant": 1 if api_t_pregnant == "Yes" else 0, "thyroid_surgery": 1 if api_t_surgery == "Yes" else 0, "I131_treatment": 1 if api_t_i131 == "Yes" else 0, "query_hypothyroid": 1 if api_t_query_hypo == "Yes" else 0, "query_hyperthyroid": 1 if api_t_query_hyper == "Yes" else 0, "lithium": 1 if api_t_lithium == "Yes" else 0, "goitre": 1 if api_t_goitre == "Yes" else 0, "tumor": 1 if api_t_tumor == "Yes" else 0, "hypopituitary": 1 if api_t_hypopit == "Yes" else 0, "psych": 1 if api_t_psych == "Yes" else 0, "TSH_measured": 1 if api_t_tsh_meas == "Yes" else 0, "T3_measured": 1 if api_t_t3_meas == "Yes" else 0, "TT4_measured": 1 if api_t_tt4_meas == "Yes" else 0, "T4U_measured": 1, "FTI_measured": 1, "TBG_measured": 1 if api_t_tbg_meas == "Yes" else 0}
         endpoint = "thyroid"; disease_clean = "Thyroid"
-        clinical_dict = {"Age": api_t_age, "Gender": api_t_sex, "TSH": api_t_tsh, "T3": api_t_t3, "TT4": api_t_tt4, "T4U": api_t_t4u, "FTI": api_t_fti, "On Thyroxine": api_t_on_thy, "Query on Thyroxine": api_t_query_thy, "On Antithyroid Meds": api_t_anti_thy, "Sick": api_t_sick, "Pregnant": api_t_pregnant, "Thyroid Surgery": api_t_surgery, "I131 Treatment": api_t_i131, "Query Hypothyroid": api_t_query_hypo, "Query Hyperthyroid": api_t_query_hyper, "Lithium": api_t_lithium, "Goitre": api_t_goitre, "Tumor": api_t_tumor, "Hypopituitary": api_t_hypopit, "Psych": api_t_psych, "TSH Measured": api_t_tsh_meas, "T3 Measured": api_t_t3_meas, "TT4 Measured": api_t_tt4_meas}
+        clinical_dict = {"Age": api_t_age, "Gender": api_t_sex, "TSH": api_t_tsh, "T3": api_t_t3, "TT4": api_t_tt4, "T4U": api_t_t4u, "FTI": api_t_fti, "TBG": api_t_tbg, "On Thyroxine": api_t_on_thy, "Query on Thyroxine": api_t_query_thy, "On Antithyroid Meds": api_t_anti_thy, "Sick": api_t_sick, "Pregnant": api_t_pregnant, "Thyroid Surgery": api_t_surgery, "I131 Treatment": api_t_i131, "Query Hypothyroid": api_t_query_hypo, "Query Hyperthyroid": api_t_query_hyper, "Lithium": api_t_lithium, "Goitre": api_t_goitre, "Tumor": api_t_tumor, "Hypopituitary": api_t_hypopit, "Psych": api_t_psych, "TSH Measured": api_t_tsh_meas, "T3 Measured": api_t_t3_meas, "TT4 Measured": api_t_tt4_meas}
 
     if submitted:
         with st.spinner(f"Generating prediction for {disease_clean}..."):

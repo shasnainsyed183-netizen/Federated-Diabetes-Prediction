@@ -56,7 +56,7 @@ global_model = create_model()
 global_weights = global_model.get_weights()
 
 # 4. Federated Training Loop (3 Rounds)
-rounds = 3
+rounds = 8
 print(f"\nStarting Federated Learning for {rounds} rounds...")
 
 for round_num in range(1, rounds + 1):
