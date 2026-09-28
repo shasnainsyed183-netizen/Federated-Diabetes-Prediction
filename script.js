@@ -141,11 +141,8 @@ function handleLogin(event) {
 
     setTimeout(() => {
         const streamlitURL = 'https://federated-diabetes-prediction-a2xkixwcd2dm56fjfwp5gw.streamlit.app/?role=' + selectedRole + '&autologin=true';
-        window.open(streamlitURL, '_blank');
-
-        submitBtn.innerHTML = originalText;
-        submitBtn.disabled = false;
-        closeLoginModal();
+        // Same tab mein redirect
+        window.location.href = streamlitURL;
     }, 800);
 }
 

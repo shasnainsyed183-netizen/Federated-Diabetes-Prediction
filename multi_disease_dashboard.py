@@ -72,7 +72,6 @@ if not st.session_state.logged_in:
     render_login_page()
     st.stop()
 
-
 # ========================================
 # PAGE SWITCHING (Dashboard vs Chat)
 # ========================================
