@@ -358,8 +358,19 @@ def _handle_message(user_input):
         current_chat['title'] = title
         chat_db.update_chat_title(chat_id, title)
     
-    user_email = _get_current_user_email()
-    bot_response = st.session_state.chatbot_instance.get_response(user_input, user_email=user_email)
+    # Get previous messages as chat history (for context) - exclude the just-added message
+    chat_history = None
+    if len(current_chat['messages']) > 1:
+        chat_history = [
+            {"role": m['role'], "content": m['content']}
+            for m in current_chat['messages'][:-1]
+        ]
+    
+    # Call chatbot with correct parameters (chat_history, NOT user_email)
+    bot_response = st.session_state.chatbot_instance.get_response(
+        user_input,
+        chat_history=chat_history
+    )
     
     current_chat['messages'].append({
         'role': 'assistant',
