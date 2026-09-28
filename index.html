@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediFederate | Privacy-Preserving Healthcare AI</title>
+<meta name="description" content="AI-powered multi-disease prediction without sharing patient data. Federated Learning + Differential Privacy.">
+<link rel="stylesheet" href="style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+<!-- ========== NAVBAR ========== -->
+<nav class="navbar" id="navbar">
+    <div class="container nav-container">
+        <a href="#" class="logo">
+            <div class="logo-icon">🏥</div>
+            <span class="logo-text">Medi<span class="gradient-text">Federate</span></span>
+        </a>
+        <ul class="nav-menu" id="navMenu">
+            <li><a href="#home" class="nav-link active">Home</a></li>
+            <li><a href="#features" class="nav-link">Features</a></li>
+            <li><a href="#diseases" class="nav-link">Diseases</a></li>
+            <li><a href="#demo" class="nav-link">Demo</a></li>
+            <li><a href="#how" class="nav-link">How It Works</a></li>
+            <li><a href="#contact" class="nav-link">Contact</a></li>
+        </ul>
+        <div class="nav-actions">
+            <button class="btn btn-primary" onclick="openLoginModal()">
+                <i class="fas fa-sign-in-alt"></i> Sign In
+            </button>
+            <button class="hamburger" id="hamburger" aria-label="Menu">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </div>
+</nav>
+
+<!-- ========== HERO SECTION ========== -->
+<section class="hero" id="home">
+    <div class="hero-bg"></div>
+    <div class="hero-orb hero-orb-1"></div>
+    <div class="hero-orb hero-orb-2"></div>
+    <div class="hero-orb hero-orb-3"></div>
+
+    <div class="container hero-container">
+        <div class="hero-content">
+            <div class="hero-badge">
+                <span class="badge-dot"></span>
+                Final Year Project 2026
+            </div>
+            <h1 class="hero-title">
+                AI Healthcare <br>
+                <span class="gradient-text">Without Compromise</span>
+            </h1>
+            <p class="hero-subtitle">
+                MediFederate lets hospitals train AI models together — <strong>without sharing a single patient record</strong>.
+                Powered by Federated Learning + Differential Privacy.
+            </p>
+            <div class="hero-cta">
+                <button onclick="openLoginModal()" class="btn btn-primary btn-lg">
+                    <i class="fas fa-rocket"></i> Get Started
+                </button>
+                <a href="#demo" class="btn btn-outline btn-lg">
+                    Watch Demo <i class="fas fa-play"></i>
+                </a>
+            </div>
+            <div class="hero-stats">
+                <div class="stat-item">
+                    <div class="stat-value">108K+</div>
+                    <div class="stat-label">Patients Trained</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">0 B</div>
+                    <div class="stat-label">Data Shared</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">5</div>
+                    <div class="stat-label">Diseases</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">90%+</div>
+                    <div class="stat-label">Avg Accuracy</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="hero-image">
+            <div class="hero-img-wrapper">
+                <img src="https://images.unsplash.com/photo-1631217868264-e5b90bb7e133?w=800&auto=format&fit=crop" alt="Doctor using MediFederate" loading="eager">
+                <div class="floating-card card-1">
+                    <div class="card-icon">🔒</div>
+                    <div>
+                        <div class="card-title">Privacy First</div>
+                        <div class="card-sub">0 bytes shared</div>
+                    </div>
+                </div>
+                <div class="floating-card card-2">
+                    <div class="card-icon">⚡</div>
+                    <div>
+                        <div class="card-title">Real-time</div>
+                        <div class="card-sub">Instant predictions</div>
+                    </div>
+                </div>
+                <div class="floating-card card-3">
+                    <div class="card-icon">🧠</div>
+                    <div>
+                        <div class="card-title">AI Powered</div>
+                        <div class="card-sub">Neural networks</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="scroll-indicator">
+        <div class="mouse"></div>
+        <span>Scroll to explore</span>
+    </div>
+</section>
+
+<!-- ========== TRUST BAR ========== -->
+<section class="trust-bar">
+    <div class="container">
+        <p class="trust-text">Trusted technologies powering MediFederate</p>
+        <div class="trust-logos">
+            <div class="trust-item"><i class="fas fa-brain"></i> TensorFlow</div>
+            <div class="trust-item"><i class="fas fa-shield-alt"></i> Differential Privacy</div>
+            <div class="trust-item"><i class="fas fa-network-wired"></i> Federated Learning</div>
+            <div class="trust-item"><i class="fas fa-bolt"></i> FastAPI</div>
+            <div class="trust-item"><i class="fas fa-robot"></i> Groq AI</div>
+        </div>
+    </div>
+</section>
+
+<!-- ========== FEATURES ========== -->
+<section class="features" id="features">
+    <div class="container">
+        <div class="section-header">
+            <div class="section-badge">Why MediFederate</div>
+            <h2 class="section-title">Built for the <span class="gradient-text">Modern Hospital</span></h2>
+            <p class="section-subtitle">Everything you need to run privacy-preserving healthcare AI — out of the box.</p>
+        </div>
+
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon icon-purple"><i class="fas fa-shield-halved"></i></div>
+                <h3>Privacy-Preserving</h3>
+                <p>Patient data never leaves the hospital. Only encrypted model weights are shared across the network.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon icon-pink"><i class="fas fa-network-wired"></i></div>
+                <h3>Federated Learning</h3>
+                <p>3 simulated hospitals train together. No centralization, no data breaches, no legal risk.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon icon-cyan"><i class="fas fa-microscope"></i></div>
+                <h3>Differential Privacy</h3>
+                <p>Gaussian noise injection guarantees that no individual patient can be re-identified from model updates.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon icon-orange"><i class="fas fa-lightbulb"></i></div>
+                <h3>Explainable AI</h3>
+                <p>SHAP-based analysis shows exactly why each prediction was made — critical for medical trust.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon icon-green"><i class="fas fa-comments"></i></div>
+                <h3>AI Health Chatbot</h3>
+                <p>MediBot answers health questions 24/7 with persistent chat history powered by Groq AI.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon icon-blue"><i class="fas fa-code"></i></div>
+                <h3>REST API</h3>
+                <p>Production-grade API for mobile apps. 5 endpoints ready to integrate in minutes.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========== DISEASES ========== -->
+<section class="diseases" id="diseases">
+    <div class="container">
+        <div class="section-header">
+            <div class="section-badge">5 Diseases</div>
+            <h2 class="section-title">Accurate Predictions Across <span class="gradient-text">Multiple Conditions</span></h2>
+            <p class="section-subtitle">Trained on real datasets, validated with differential privacy.</p>
+        </div>
+
+        <div class="diseases-grid">
+            <div class="disease-card disease-diabetes">
+                <div class="disease-emoji">🩸</div>
+                <h3>Diabetes</h3>
+                <div class="disease-accuracy">62.38%</div>
+                <div class="disease-patients">100,244 patients</div>
+                <div class="disease-badge">Beats Baseline</div>
+            </div>
+            <div class="disease-card disease-heart">
+                <div class="disease-emoji">❤️</div>
+                <h3>Heart Disease</h3>
+                <div class="disease-accuracy">88.52%</div>
+                <div class="disease-patients">303 patients</div>
+                <div class="disease-badge badge-gold">⭐ Best Model</div>
+            </div>
+            <div class="disease-card disease-stroke">
+                <div class="disease-emoji">🧠</div>
+                <h3>Stroke</h3>
+                <div class="disease-accuracy">72.90%</div>
+                <div class="disease-patients">5,109 patients</div>
+                <div class="disease-badge">80% Recall</div>
+            </div>
+            <div class="disease-card disease-kidney">
+                <div class="disease-emoji">🫘</div>
+                <h3>Kidney Disease</h3>
+                <div class="disease-accuracy">100%</div>
+                <div class="disease-patients">400 patients</div>
+                <div class="disease-badge badge-green">🎯 Excellent</div>
+            </div>
+            <div class="disease-card disease-thyroid">
+                <div class="disease-emoji">🧬</div>
+                <h3>Thyroid</h3>
+                <div class="disease-accuracy">90.36%</div>
+                <div class="disease-patients">8,865 patients</div>
+                <div class="disease-badge badge-purple">Real Data</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========== DEMO VIDEO ========== -->
+<section class="demo" id="demo">
+    <div class="container">
+        <div class="section-header">
+            <div class="section-badge">Live Demo</div>
+            <h2 class="section-title">See MediFederate <span class="gradient-text">In Action</span></h2>
+            <p class="section-subtitle">Watch how a doctor enters patient details and gets an instant AI prediction.</p>
+        </div>
+
+        <div class="demo-wrapper">
+            <div class="demo-video">
+                <iframe 
+                    src="https://www.youtube.com/embed/dQw4w9WgXcQ" 
+                    title="MediFederate Demo Video"
+                    frameborder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowfullscreen>
+                </iframe>
+            </div>
+            <div class="demo-side">
+                <div class="demo-step">
+                    <div class="step-num">1</div>
+                    <div>
+                        <h4>Enter Patient Data</h4>
+                        <p>Doctor fills a simple form with patient vitals — no coding needed.</p>
+                    </div>
+                </div>
+                <div class="demo-step">
+                    <div class="step-num">2</div>
+                    <div>
+                        <h4>AI Analyzes Privately</h4>
+                        <p>Federated model runs prediction — data never leaves the device.</p>
+                    </div>
+                </div>
+                <div class="demo-step">
+                    <div class="step-num">3</div>
+                    <div>
+                        <h4>Get Instant Result</h4>
+                        <p>Risk level + probability + downloadable PDF medical report.</p>
+                    </div>
+                </div>
+                <button onclick="openLoginModal()" class="btn btn-primary btn-block">
+                    <i class="fas fa-rocket"></i> Try It Yourself
+                </button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========== HOW IT WORKS ========== -->
+<section class="how" id="how">
+    <div class="container">
+        <div class="section-header">
+            <div class="section-badge">How It Works</div>
+            <h2 class="section-title">The <span class="gradient-text">Federated Architecture</span></h2>
+            <p class="section-subtitle">Three hospitals. One global model. Zero data exposure.</p>
+        </div>
+
+        <div class="arch-wrapper">
+            <div class="arch-global">
+                <div class="arch-icon">🌐</div>
+                <h3>Global Model</h3>
+                <p>Central server holds the aggregated model</p>
+            </div>
+            <div class="arch-arrows">
+                <i class="fas fa-arrow-down"></i>
+                <i class="fas fa-arrow-down"></i>
+                <i class="fas fa-arrow-down"></i>
+            </div>
+            <div class="arch-hospitals">
+                <div class="arch-hospital">
+                    <div class="hospital-icon">🏥</div>
+                    <div class="hospital-name">Hospital A</div>
+                    <div class="hospital-data">40,000 patients</div>
+                </div>
+                <div class="arch-hospital">
+                    <div class="hospital-icon">🏥</div>
+                    <div class="hospital-name">Hospital B</div>
+                    <div class="hospital-data">24,000 patients</div>
+                </div>
+                <div class="arch-hospital">
+                    <div class="hospital-icon">🏥</div>
+                    <div class="hospital-name">Hospital C</div>
+                    <div class="hospital-data">16,000 patients</div>
+                </div>
+            </div>
+            <div class="arch-arrows">
+                <i class="fas fa-arrow-down"></i>
+                <i class="fas fa-arrow-down"></i>
+                <i class="fas fa-arrow-down"></i>
+            </div>
+            <div class="arch-process">
+                <span class="arch-step">Local Train</span>
+                <i class="fas fa-plus"></i>
+                <span class="arch-step">Weight Clipping</span>
+                <i class="fas fa-plus"></i>
+                <span class="arch-step">DP Noise</span>
+            </div>
+            <div class="arch-arrows">
+                <i class="fas fa-arrow-down"></i>
+                <i class="fas fa-arrow-down"></i>
+                <i class="fas fa-arrow-down"></i>
+            </div>
+            <div class="arch-global arch-fedavg">
+                <div class="arch-icon">📊</div>
+                <h3>FedAvg Aggregation</h3>
+                <p>Average of weights — no patient data transferred</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========== CTA ========== -->
+<section class="cta-section">
+    <div class="container">
+        <div class="cta-box">
+            <h2>Ready to Revolutionize <span class="gradient-text-light">Healthcare AI?</span></h2>
+            <p>Try MediFederate live — no signup, no credit card, no patient data at risk.</p>
+            <div class="cta-buttons">
+                <button onclick="openLoginModal()" class="btn btn-white btn-lg">
+                    <i class="fas fa-rocket"></i> Access Dashboard
+                </button>
+                <a href="https://federated-diabetes-prediction-production.up.railway.app/docs" target="_blank" class="btn btn-outline-white btn-lg">
+                    <i class="fas fa-code"></i> API Docs
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========== CONTACT ========== -->
+<section class="contact" id="contact">
+    <div class="container">
+        <div class="section-header">
+            <div class="section-badge">Get In Touch</div>
+            <h2 class="section-title">Have Questions? <span class="gradient-text">Let's Talk</span></h2>
+        </div>
+        <div class="contact-grid">
+            <div class="contact-card">
+                <div class="contact-icon">📧</div>
+                <h4>Email</h4>
+                <p>support@medifederate.com</p>
+            </div>
+            <div class="contact-card">
+                <div class="contact-icon">💬</div>
+                <h4>AI Chatbot</h4>
+                <p>MediBot — available 24/7 in-app</p>
+            </div>
+            <div class="contact-card">
+                <div class="contact-icon">🌐</div>
+                <h4>Website</h4>
+                <p>medifederate.com</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========== FOOTER ========== -->
+<footer class="footer">
+    <div class="container">
+        <div class="footer-grid">
+            <div class="footer-brand">
+                <div class="logo">
+                    <div class="logo-icon">🏥</div>
+                    <span class="logo-text">Medi<span class="gradient-text">Federate</span></span>
+                </div>
+                <p>Privacy-preserving healthcare AI platform for the modern hospital.</p>
+            </div>
+            <div class="footer-links">
+                <h4>Product</h4>
+                <a href="#features">Features</a>
+                <a href="#diseases">Diseases</a>
+                <a href="#demo">Demo</a>
+                <a href="#how">How It Works</a>
+            </div>
+            <div class="footer-links">
+                <h4>Resources</h4>
+                <a href="https://federated-diabetes-prediction-production.up.railway.app/docs" target="_blank">API Docs</a>
+                <a href="https://github.com/shasnainsyed183-netizen/Federated-Diabetes-Prediction" target="_blank">GitHub</a>
+                <a href="#" onclick="openLoginModal()">Live App</a>
+            </div>
+            <div class="footer-links">
+                <h4>Legal</h4>
+                <a href="#">Privacy Policy</a>
+                <a href="#">Terms of Service</a>
+                <a href="#contact">Contact</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>© 2026 MediFederate · Final Year Project · Built with Federated Learning + Differential Privacy</p>
+        </div>
+    </div>
+</footer>
+
+<!-- Back to top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+    <i class="fas fa-arrow-up"></i>
+</button>
+
+<!-- ========== LOGIN MODAL ========== -->
+<div class="login-modal" id="loginModal">
+    <div class="login-modal-content">
+        <button class="modal-close" onclick="closeLoginModal()" aria-label="Close">
+            <i class="fas fa-times"></i>
+        </button>
+        
+        <div class="login-header">
+            <div class="login-logo">🏥</div>
+            <h2>Welcome to <span class="gradient-text">MediFederate</span></h2>
+            <p>Sign in to access your dashboard</p>
+        </div>
+
+        <div class="login-tabs">
+            <button type="button" class="login-tab active" onclick="switchTab('login')">Sign In</button>
+            <button type="button" class="login-tab" onclick="switchTab('signup')">Sign Up</button>
+        </div>
+
+        <div class="role-selector">
+            <p class="role-label">I am a:</p>
+            <div class="role-buttons">
+                <button type="button" class="role-btn active" data-role="patient" onclick="selectRole('patient')">
+                    <i class="fas fa-user"></i>
+                    <span>Patient</span>
+                </button>
+                <button type="button" class="role-btn" data-role="doctor" onclick="selectRole('doctor')">
+                    <i class="fas fa-user-md"></i>
+                    <span>Doctor</span>
+                </button>
+            </div>
+        </div>
+
+        <form class="login-form" id="loginForm" onsubmit="handleLogin(event)">
+            <div class="input-group">
+                <i class="fas fa-envelope"></i>
+                <input type="email" placeholder="Email address" id="loginEmail" required>
+            </div>
+            <div class="input-group">
+                <i class="fas fa-lock"></i>
+                <input type="password" placeholder="Password" id="loginPassword" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">
+                <i class="fas fa-sign-in-alt"></i> Sign In & Continue
+            </button>
+        </form>
+
+        <form class="login-form" id="signupForm" onsubmit="handleLogin(event)" style="display:none;">
+            <div class="input-group">
+                <i class="fas fa-user"></i>
+                <input type="text" placeholder="Full Name" id="signupName" required>
+            </div>
+            <div class="input-group">
+                <i class="fas fa-envelope"></i>
+                <input type="email" placeholder="Email address" id="signupEmail" required>
+            </div>
+            <div class="input-group">
+                <i class="fas fa-lock"></i>
+                <input type="password" placeholder="Create Password" id="signupPassword" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">
+                <i class="fas fa-user-plus"></i> Create Account & Continue
+            </button>
+        </form>
+
+        <p class="login-note">
+            <i class="fas fa-shield-alt"></i>
+            Your data is encrypted and never shared
+        </p>
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
