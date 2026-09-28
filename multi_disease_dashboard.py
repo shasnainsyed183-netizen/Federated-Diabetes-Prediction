@@ -888,14 +888,15 @@ st.markdown(f"""
 # MAIN TABS
 # ========================================
 if is_patient:
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab_gallery, tab_contacts = st.tabs([
         "📈 Overview", "🩸 Diabetes", "❤️ Heart Disease", "🧠 Stroke",
         "🫘 Kidney", "🧬 Thyroid", "🩺 Live Prediction", "🔍 Explainable AI", "🏥 Gallery", "📞 Contacts"])
-    tab11 = None
+    tab_analytics = None
+    tab_history = None
 else:
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab_analytics, tab_gallery, tab_contacts, tab_history = st.tabs([
         "📈 Overview", "🩸 Diabetes", "❤️ Heart Disease", "🧠 Stroke",
-        "🫘 Kidney", "🧬 Thyroid", "🩺 Live Prediction", "🔍 Explainable AI", "🏥 Gallery", "📞 Contacts", "📜 History"])
+        "🫘 Kidney", "🧬 Thyroid", "🩺 Live Prediction", "🔍 Explainable AI", "📊 Analytics", "🏥 Gallery", "📞 Contacts", "📜 History"])
 
 
 # ========================================
@@ -1641,9 +1642,232 @@ with tab8:
 
 
 # ========================================
-# TAB 9: GALLERY
+# TAB: DOCTOR ANALYTICS (Doctor Only)
 # ========================================
-with tab9:
+if tab_analytics is not None:
+    with tab_analytics:
+        st.markdown('<div class="section-header">📊 Doctor Analytics Dashboard</div>', unsafe_allow_html=True)
+        
+        st.markdown("""
+        A complete overview of **your prediction activity**. Track your performance, 
+        see disease patterns, and monitor your clinical insights.
+        """)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        df_all = hist.get_all_predictions(disease_filter="All", user_email=user_email)
+        
+        if df_all.empty:
+            st.info("📭 **No predictions yet.** Go to any disease tab and make your first prediction to see analytics here!")
+        else:
+            df_all['timestamp'] = pd.to_datetime(df_all['timestamp'])
+            df_all['date'] = df_all['timestamp'].dt.date
+            
+            total = len(df_all)
+            high_risk = len(df_all[df_all['risk_level'].str.contains('High', na=False, case=False)])
+            low_risk = total - high_risk
+            avg_prob = df_all['probability'].mean() * 100
+            active_days = df_all['date'].nunique()
+            high_pct = (high_risk / total) * 100 if total > 0 else 0
+            
+            st.markdown("### 📈 Your Statistics")
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.markdown(f'<div class="metric-card"><div class="metric-label">Total Predictions</div><div class="metric-value" style="font-size: 2rem;">{total}</div><p style="color: #A8A8C0; font-size: 0.85rem; margin-top: 6px;">All diseases</p></div>', unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown(f'<div class="metric-card"><div class="metric-label">High Risk Detected</div><div class="metric-value" style="font-size: 2rem; color: #FF4757;">{high_risk}</div><p style="color: #A8A8C0; font-size: 0.85rem; margin-top: 6px;">{high_pct:.1f}% of total</p></div>', unsafe_allow_html=True)
+            
+            with col3:
+                st.markdown(f'<div class="metric-card"><div class="metric-label">Avg Probability</div><div class="metric-value" style="font-size: 2rem;">{avg_prob:.1f}%</div><p style="color: #A8A8C0; font-size: 0.85rem; margin-top: 6px;">Across all cases</p></div>', unsafe_allow_html=True)
+            
+            with col4:
+                st.markdown(f'<div class="metric-card"><div class="metric-label">Active Days</div><div class="metric-value" style="font-size: 2rem;">{active_days}</div><p style="color: #A8A8C0; font-size: 0.85rem; margin-top: 6px;">Days with predictions</p></div>', unsafe_allow_html=True)
+            
+            st.markdown("<br><br>", unsafe_allow_html=True)
+            st.markdown("---")
+            
+            st.markdown("### 📊 Disease & Risk Distribution")
+            col_chart1, col_chart2 = st.columns(2)
+            
+            with col_chart1:
+                st.markdown("#### 🎯 Disease Distribution")
+                st.caption("Which diseases are you predicting most?")
+                
+                try:
+                    import plotly.graph_objects as go
+                    
+                    disease_counts = df_all['disease'].value_counts()
+                    
+                    fig_donut = go.Figure(data=[go.Pie(
+                        labels=disease_counts.index.tolist(),
+                        values=disease_counts.values.tolist(),
+                        hole=0.6,
+                        marker=dict(
+                            colors=['#6C63FF', '#FF6584', '#00D9A3', '#FFB800', '#3B82F6'],
+                            line=dict(color='#0A0A1A', width=3)
+                        ),
+                        textinfo='label+percent',
+                        textfont=dict(size=12, color='white', family='Poppins'),
+                        hovertemplate='<b>%{label}</b><br>Count: %{value}<br>%{percent}<extra></extra>'
+                    )])
+                    
+                    fig_donut.update_layout(
+                        showlegend=False,
+                        height=380,
+                        margin=dict(l=20, r=20, t=20, b=20),
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        font=dict(color='white', family='Poppins'),
+                        annotations=[dict(
+                            text=f'<b>{total}</b><br><span style="font-size:11px;color:#A8A8C0;">Total</span>',
+                            x=0.5, y=0.5, font_size=22, showarrow=False, font_color='#FFFFFF'
+                        )]
+                    )
+                    
+                    st.plotly_chart(fig_donut, width='stretch', config={'displayModeBar': False}, key="analytics_donut")
+                except Exception as e:
+                    st.error(f"Chart error: {e}")
+            
+            with col_chart2:
+                st.markdown("#### 🎨 Risk Level Breakdown")
+                st.caption("High vs Low risk per disease")
+                
+                try:
+                    import plotly.graph_objects as go
+                    
+                    risk_by_disease = df_all.groupby(['disease', 'risk_level']).size().unstack(fill_value=0)
+                    
+                    for col_name in ['High Risk', 'Low Risk']:
+                        if col_name not in risk_by_disease.columns:
+                            risk_by_disease[col_name] = 0
+                    
+                    diseases = risk_by_disease.index.tolist()
+                    high_vals = risk_by_disease['High Risk'].tolist() if 'High Risk' in risk_by_disease.columns else [0]*len(diseases)
+                    low_vals = risk_by_disease['Low Risk'].tolist() if 'Low Risk' in risk_by_disease.columns else [0]*len(diseases)
+                    
+                    fig_bar = go.Figure(data=[
+                        go.Bar(name='High Risk', x=diseases, y=high_vals, marker_color='#FF4757',
+                               hovertemplate='<b>%{x}</b><br>High Risk: %{y}<extra></extra>'),
+                        go.Bar(name='Low Risk', x=diseases, y=low_vals, marker_color='#00D9A3',
+                               hovertemplate='<b>%{x}</b><br>Low Risk: %{y}<extra></extra>')
+                    ])
+                    
+                    fig_bar.update_layout(
+                        barmode='stack',
+                        height=380,
+                        margin=dict(l=20, r=20, t=20, b=40),
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        font=dict(color='white', family='Poppins', size=11),
+                        xaxis=dict(gridcolor='rgba(108,99,255,0.1)', showgrid=False),
+                        yaxis=dict(gridcolor='rgba(108,99,255,0.15)', title='Count'),
+                        legend=dict(orientation='h', y=-0.15, x=0.5, xanchor='center',
+                                    font=dict(color='white'))
+                    )
+                    
+                    st.plotly_chart(fig_bar, width='stretch', config={'displayModeBar': False}, key="analytics_bar")
+                except Exception as e:
+                    st.error(f"Chart error: {e}")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("---")
+            
+            st.markdown("### 📅 Activity Trend")
+            col_trend, col_insight = st.columns([2, 1])
+            
+            with col_trend:
+                st.markdown("#### Predictions Over Time")
+                st.caption("Last 14 days of activity")
+                
+                try:
+                    import plotly.graph_objects as go
+                    
+                    daily_counts = df_all.groupby('date').size().reset_index(name='count')
+                    daily_counts = daily_counts.sort_values('date').tail(14)
+                    
+                    fig_line = go.Figure()
+                    
+                    fig_line.add_trace(go.Scatter(
+                        x=daily_counts['date'].astype(str),
+                        y=daily_counts['count'],
+                        mode='lines+markers',
+                        line=dict(color='#6C63FF', width=3, shape='spline'),
+                        marker=dict(size=10, color='#8B7FFF', line=dict(color='#FFFFFF', width=2)),
+                        fill='tozeroy',
+                        fillcolor='rgba(108, 99, 255, 0.15)',
+                        hovertemplate='<b>%{x}</b><br>Predictions: %{y}<extra></extra>'
+                    ))
+                    
+                    fig_line.update_layout(
+                        height=300,
+                        margin=dict(l=20, r=20, t=20, b=40),
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        font=dict(color='white', family='Poppins', size=11),
+                        xaxis=dict(gridcolor='rgba(108,99,255,0.1)', showgrid=False, title=''),
+                        yaxis=dict(gridcolor='rgba(108,99,255,0.15)', title='Count'),
+                        showlegend=False
+                    )
+                    
+                    st.plotly_chart(fig_line, width='stretch', config={'displayModeBar': False}, key="analytics_trend")
+                except Exception as e:
+                    st.error(f"Chart error: {e}")
+            
+            with col_insight:
+                st.markdown("#### 💡 Insights")
+                
+                most_common = df_all['disease'].value_counts().index[0] if len(df_all) > 0 else "N/A"
+                most_common_count = df_all['disease'].value_counts().iloc[0] if len(df_all) > 0 else 0
+                most_recent = df_all['timestamp'].max().strftime('%Y-%m-%d') if len(df_all) > 0 else "N/A"
+                
+                st.markdown(f"""
+                <div class="feature-card fade-in" style="padding: 18px; margin-bottom: 12px;">
+                    <div class="feature-title" style="font-size: 0.95rem;">🏆 Most Predicted</div>
+                    <div class="feature-desc" style="font-size: 0.85rem;"><b style="color: #8B7FFF;">{most_common}</b><br>{most_common_count} cases</div>
+                </div>
+                
+                <div class="feature-card fade-in" style="padding: 18px; margin-bottom: 12px;">
+                    <div class="feature-title" style="font-size: 0.95rem;">🔴 High Risk Alert</div>
+                    <div class="feature-desc" style="font-size: 0.85rem;"><b style="color: #FF4757;">{high_risk}</b> high-risk cases detected</div>
+                </div>
+                
+                <div class="feature-card fade-in" style="padding: 18px;">
+                    <div class="feature-title" style="font-size: 0.95rem;">🕐 Last Prediction</div>
+                    <div class="feature-desc" style="font-size: 0.85rem;">{most_recent}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("---")
+            
+            st.markdown("### 🕒 Recent Predictions")
+            
+            recent_df = df_all.sort_values('timestamp', ascending=False).head(10).copy()
+            recent_df['probability'] = (recent_df['probability'] * 100).round(1).astype(str) + '%'
+            recent_df['timestamp'] = recent_df['timestamp'].dt.strftime('%Y-%m-%d %H:%M')
+            
+            display_cols = ['timestamp', 'disease', 'probability', 'risk_level']
+            st.dataframe(
+                recent_df[display_cols].rename(columns={
+                    'timestamp': 'Time',
+                    'disease': 'Disease',
+                    'probability': 'Probability',
+                    'risk_level': 'Risk Level'
+                }),
+                width='stretch',
+                hide_index=True
+            )
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.success(f"✅ Analytics dashboard generated from **{total}** predictions!")
+
+
+# ========================================
+# TAB: GALLERY
+# ========================================
+with tab_gallery:
     st.markdown('<div class="section-header">🏥 Medical Knowledge Gallery</div>', unsafe_allow_html=True)
     gallery_items = [
         {"category": "CARDIOLOGY", "title": "Blood Pressure Monitoring", "desc": "High BP is a silent killer.", "image": "https://images.unsplash.com/photo-1579154204601-01588f351e67?w=800", "emoji": "💓", "query": "My blood pressure is high, what should I do?"},
@@ -1669,9 +1893,9 @@ with tab9:
 
 
 # ========================================
-# TAB 10: CONTACTS
+# TAB: CONTACTS
 # ========================================
-with tab10:
+with tab_contacts:
     st.markdown('<div class="section-header">📞 Contacts & Helpline</div>', unsafe_allow_html=True)
     st.markdown("##### 🚨 Emergency Numbers")
     col1, col2, col3, col4 = st.columns(4)
@@ -1689,10 +1913,10 @@ with tab10:
 
 
 # ========================================
-# TAB 11: HISTORY
+# TAB: HISTORY (Doctor Only)
 # ========================================
-if tab11 is not None:
-    with tab11:
+if tab_history is not None:
+    with tab_history:
         st.markdown('<div class="section-header">📜 My Prediction History</div>', unsafe_allow_html=True)
         stats = hist.get_statistics(user_email=user_email)
         col1, col2, col3, col4 = st.columns(4)
