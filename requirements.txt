@@ -1,3 +1,4 @@
+# ===== Frontend =====
 streamlit
 pandas
 numpy
@@ -8,9 +9,18 @@ seaborn
 reportlab
 groq
 python-dotenv
-bcrypt
+bcrypt==4.0.1
 shap
 plotly
-fastapi
-uvicorn
 requests
+
+# ===== Backend =====
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary
+python-jose[cryptography]
+passlib
+pydantic[email]
+pydantic-settings
+python-multipart
