@@ -1,11 +1,17 @@
 """
 MediFederate Login Page
-Professional Split-Screen Design with Guest Mode & Forgot Password
-English only
+Real Backend Authentication (FastAPI + JWT)
 """
 
 import streamlit as st
-import auth
+import requests
+import os
+
+
+# ========================================
+# BACKEND API URL
+# ========================================
+BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8001")
 
 
 def inject_login_css():
@@ -206,8 +212,52 @@ def inject_login_css():
     """, unsafe_allow_html=True)
 
 
+def call_signup_api(payload: dict):
+    """Call the backend signup endpoint."""
+    try:
+        response = requests.post(
+            f"{BACKEND_URL}/auth/signup",
+            json=payload,
+            timeout=15
+        )
+        if response.status_code == 201:
+            return True, "Account created successfully", response.json()
+        else:
+            try:
+                detail = response.json().get("detail", "Signup failed")
+            except Exception:
+                detail = f"Signup failed (status {response.status_code})"
+            return False, detail, None
+    except requests.exceptions.ConnectionError:
+        return False, "Cannot connect to backend. Is the server running?", None
+    except Exception as e:
+        return False, f"Error: {str(e)}", None
+
+
+def call_login_api(email: str, password: str):
+    """Call the backend login endpoint."""
+    try:
+        response = requests.post(
+            f"{BACKEND_URL}/auth/login",
+            json={"email": email, "password": password},
+            timeout=15
+        )
+        if response.status_code == 200:
+            return True, "Login successful", response.json()
+        else:
+            try:
+                detail = response.json().get("detail", "Login failed")
+            except Exception:
+                detail = "Invalid email or password"
+            return False, detail, None
+    except requests.exceptions.ConnectionError:
+        return False, "Cannot connect to backend. Is the server running?", None
+    except Exception as e:
+        return False, f"Error: {str(e)}", None
+
+
 def render_login_page():
-    """Render the split-screen login page with guest mode"""
+    """Render the split-screen login page with real backend authentication"""
     inject_login_css()
     
     if 'show_forgot_password' not in st.session_state:
@@ -243,12 +293,14 @@ def render_login_page():
         
         if st.button("👤  Continue as Patient (Guest)", use_container_width=True, key="patient_mode_btn"):
             st.session_state.logged_in = True
+            st.session_state.token = None
             st.session_state.user = {
                 'id': None,
                 'full_name': 'Patient (Guest)',
                 'email': 'guest@medifederate',
                 'role': 'patient',
-                'hospital': 'N/A'
+                'hospital': 'N/A',
+                'created_at': 'N/A',
             }
             st.rerun()
         
@@ -257,6 +309,7 @@ def render_login_page():
         # ===== DOCTOR LOGIN/SIGNUP TABS =====
         tab_login, tab_signup = st.tabs(["🔐  Doctor Login", "✨  Register"])
         
+        # ===== LOGIN TAB =====
         with tab_login:
             with st.form("login_form", clear_on_submit=False):
                 st.markdown("#### Welcome Back 👨‍⚕️")
@@ -270,12 +323,21 @@ def render_login_page():
                     if not email or not password:
                         st.error("⚠️ Please enter both email and password.")
                     else:
-                        success, message, user_data = auth.login(email, password)
+                        with st.spinner("Authenticating..."):
+                            success, message, data = call_login_api(email, password)
                         
                         if success:
                             st.session_state.logged_in = True
-                            st.session_state.user = user_data
-                            st.success(f"✅ Welcome back, {user_data['full_name']}!")
+                            st.session_state.token = data.get("access_token")
+                            st.session_state.user = {
+                                'id': data['user']['id'],
+                                'full_name': data['user']['full_name'],
+                                'email': data['user']['email'],
+                                'role': data['user']['role'],
+                                'hospital': 'N/A',
+                                'created_at': data['user'].get('created_at', 'N/A'),
+                            }
+                            st.success(f"✅ Welcome back, {data['user']['full_name']}!")
                             st.balloons()
                             st.rerun()
                         else:
@@ -285,6 +347,7 @@ def render_login_page():
                 st.session_state.show_forgot_password = True
                 st.rerun()
         
+        # ===== SIGNUP TAB =====
         with tab_signup:
             with st.form("signup_form", clear_on_submit=False):
                 st.markdown("#### Register as Doctor 👨‍⚕️")
@@ -293,6 +356,9 @@ def render_login_page():
                 email_s = st.text_input("📧 Email Address", placeholder="doctor@hospital.com", key="signup_email")
                 password_s = st.text_input("🔒 Password", type="password", placeholder="Minimum 6 characters", key="signup_password")
                 password_confirm = st.text_input("🔒 Confirm Password", type="password", placeholder="Re-enter your password", key="signup_confirm")
+                
+                phone = st.text_input("📞 Phone Number", placeholder="03001234567", key="signup_phone")
+                city = st.text_input("🏙️ City", placeholder="Karachi", key="signup_city")
                 
                 hospital = st.selectbox(
                     "🏥 Hospital / Institution",
@@ -312,20 +378,37 @@ def render_login_page():
                 
                 if submit_s:
                     if not full_name or not email_s or not password_s or not password_confirm:
-                        st.error("⚠️ Please fill in all fields.")
+                        st.error("⚠️ Please fill in all required fields.")
                     elif password_s != password_confirm:
                         st.error("⚠️ Passwords do not match.")
                     elif len(password_s) < 6:
                         st.error("⚠️ Password must be at least 6 characters.")
                     else:
-                        success, message, user_data = auth.signup(
-                            full_name, email_s, password_s, hospital
-                        )
+                        payload = {
+                            "email": email_s,
+                            "password": password_s,
+                            "full_name": full_name,
+                            "role": "doctor",
+                            "phone": phone or None,
+                            "cnic": None,
+                            "city": city or None,
+                        }
+                        
+                        with st.spinner("Creating your account..."):
+                            success, message, data = call_signup_api(payload)
                         
                         if success:
                             st.session_state.logged_in = True
-                            st.session_state.user = user_data
-                            st.success(f"✅ Account created! Welcome, {user_data['full_name']}!")
+                            st.session_state.token = data.get("access_token")
+                            st.session_state.user = {
+                                'id': data['user']['id'],
+                                'full_name': data['user']['full_name'],
+                                'email': data['user']['email'],
+                                'role': data['user']['role'],
+                                'hospital': hospital,
+                                'created_at': data['user'].get('created_at', 'N/A'),
+                            }
+                            st.success(f"✅ Account created! Welcome, {data['user']['full_name']}!")
                             st.balloons()
                             st.rerun()
                         else:
@@ -356,7 +439,6 @@ def render_login_page():
                 st.session_state.show_terms_page = False
                 st.rerun()
         
-        # ===== LEGAL LINKS =====
         col_p, col_t = st.columns(2)
         
         with col_p:
@@ -383,7 +465,7 @@ def render_login_page():
 
 
 def render_forgot_password_form():
-    """Render forgot password reset form"""
+    """Forgot password - demo only"""
     inject_login_css()
     
     left_space, center_col, right_space = st.columns([1, 2, 1])
@@ -393,43 +475,11 @@ def render_forgot_password_form():
         <div class="form-header" style="margin-top: 40px;">
             <div class="form-header-icon">🔑</div>
             <div class="form-header-title">Reset Your Password</div>
-            <div class="form-header-subtitle">Enter your registered email and set a new password</div>
+            <div class="form-header-subtitle">This feature will be available soon</div>
         </div>
         """, unsafe_allow_html=True)
         
-        st.markdown("""
-        <div style="background: rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6; border-radius: 10px; padding: 14px 18px; margin-bottom: 20px; color: #93c5fd; font-size: 0.85rem; line-height: 1.6;">
-            <strong>ℹ️ Note:</strong> This is a demo password reset. In a real system, you would receive a verification email first.
-        </div>
-        """, unsafe_allow_html=True)
-        
-        with st.form("forgot_password_form", clear_on_submit=False):
-            email = st.text_input("📧 Registered Email", placeholder="doctor@hospital.com", key="fp_email")
-            new_password = st.text_input("🔒 New Password", type="password", placeholder="Minimum 6 characters", key="fp_new_pass")
-            confirm_password = st.text_input("🔒 Confirm New Password", type="password", placeholder="Re-enter new password", key="fp_confirm_pass")
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            
-            submit = st.form_submit_button("🔑  Reset Password", type="primary", use_container_width=True)
-            
-            if submit:
-                if not email or not new_password or not confirm_password:
-                    st.error("⚠️ Please fill all fields.")
-                elif new_password != confirm_password:
-                    st.error("⚠️ Passwords do not match.")
-                elif len(new_password) < 6:
-                    st.error("⚠️ Password must be at least 6 characters.")
-                else:
-                    success, message = auth.reset_password(email, new_password)
-                    if success:
-                        st.success(f"✅ {message}")
-                        st.info("🔄 Redirecting to login...")
-                        st.session_state.show_forgot_password = False
-                        st.rerun()
-                    else:
-                        st.error(f"❌ {message}")
-        
-        st.markdown("<br>", unsafe_allow_html=True)
+        st.info("ℹ️ Password reset via email will be available in the next update.")
         
         if st.button("←  Back to Login", use_container_width=True, key="back_to_login_btn"):
             st.session_state.show_forgot_password = False
@@ -440,6 +490,7 @@ def logout():
     """Logout the current user"""
     st.session_state.logged_in = False
     st.session_state.user = None
+    st.session_state.token = None
     st.session_state.show_chat_page = False
     st.session_state.pending_chat_query = None
     st.session_state.show_email_page = False

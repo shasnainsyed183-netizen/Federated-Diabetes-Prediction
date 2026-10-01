@@ -1,16 +1,19 @@
 """
 MediFederate Settings & Account Page
-Profile, account details, security, and preferences
+Real backend data — no cosmetic auth
 """
 
 import streamlit as st
 from datetime import datetime
-import auth
+import requests
+import os
 import history_db as hist
 
 
+BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8001")
+
+
 def inject_settings_css():
-    """CSS for settings page"""
     st.markdown("""
     <style>
         .profile-card {
@@ -118,55 +121,55 @@ def inject_settings_css():
     """, unsafe_allow_html=True)
 
 
+def _format_date(date_str):
+    """Format a date string nicely."""
+    if not date_str or date_str == "N/A":
+        return "N/A"
+    try:
+        if isinstance(date_str, str):
+            dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+        else:
+            dt = date_str
+        return dt.strftime("%B %d, %Y at %H:%M")
+    except Exception:
+        return str(date_str)
+
+
 def _render_profile_tab(current_user, is_patient, user_email):
-    """Profile tab content"""
+    """Profile tab — uses real session data"""
     avatar = "👤" if is_patient else "👨‍⚕️"
     role_display = "Patient (Guest)" if is_patient else "Doctor"
     
+    full_name = current_user.get('full_name', 'User')
+    created_at = _format_date(current_user.get('created_at', 'N/A'))
+    
     html = '<div class="profile-card">'
-    html += '<div class="profile-avatar">' + avatar + '</div>'
-    html += '<div class="profile-name">' + current_user.get('full_name', 'User') + '</div>'
-    html += '<div class="profile-role">' + role_display + '</div>'
-    html += '<div class="profile-email">📧 ' + user_email + '</div>'
+    html += f'<div class="profile-avatar">{avatar}</div>'
+    html += f'<div class="profile-name">{full_name}</div>'
+    html += f'<div class="profile-role">{role_display}</div>'
+    html += f'<div class="profile-email">📧 {user_email}</div>'
     html += '</div>'
     st.markdown(html, unsafe_allow_html=True)
     
     if not is_patient:
-        try:
-            all_users = auth.get_all_users()
-            user_row = None
-            for u in all_users:
-                if u[2] == user_email:
-                    user_row = u
-                    break
-            if user_row:
-                created = user_row[5] if len(user_row) > 5 else "N/A"
-                last_login = user_row[6] if len(user_row) > 6 and user_row[6] else "First login"
-            else:
-                created = "N/A"
-                last_login = "N/A"
-        except Exception:
-            created = "N/A"
-            last_login = "N/A"
-        
         html = '<div class="setting-section">'
         html += '<div class="setting-section-title">👤 Account Information</div>'
-        html += '<div class="info-row"><span class="info-label">Full Name</span><span class="info-value">' + current_user.get('full_name', 'N/A') + '</span></div>'
-        html += '<div class="info-row"><span class="info-label">Email</span><span class="info-value">' + user_email + '</span></div>'
-        html += '<div class="info-row"><span class="info-label">Role</span><span class="info-value">' + role_display + '</span></div>'
-        html += '<div class="info-row"><span class="info-label">Hospital</span><span class="info-value">' + current_user.get('hospital', 'N/A') + '</span></div>'
-        html += '<div class="info-row"><span class="info-label">Account Created</span><span class="info-value">' + created + '</span></div>'
-        html += '<div class="info-row"><span class="info-label">Last Login</span><span class="info-value">' + last_login + '</span></div>'
+        html += f'<div class="info-row"><span class="info-label">Full Name</span><span class="info-value">{full_name}</span></div>'
+        html += f'<div class="info-row"><span class="info-label">Email</span><span class="info-value">{user_email}</span></div>'
+        html += f'<div class="info-row"><span class="info-label">Role</span><span class="info-value">{role_display}</span></div>'
+        html += f'<div class="info-row"><span class="info-label">Hospital</span><span class="info-value">{current_user.get("hospital", "N/A")}</span></div>'
+        html += f'<div class="info-row"><span class="info-label">Account ID</span><span class="info-value">#{current_user.get("id", "N/A")}</span></div>'
+        html += f'<div class="info-row"><span class="info-label">Account Created</span><span class="info-value">{created_at}</span></div>'
         html += '</div>'
         st.markdown(html, unsafe_allow_html=True)
     else:
         html = '<div class="setting-section">'
         html += '<div class="setting-section-title">👤 Guest Information</div>'
         html += '<div class="info-row"><span class="info-label">Status</span><span class="info-value">Patient (Guest)</span></div>'
-        html += '<div class="info-row"><span class="info-label">Email</span><span class="info-value">' + user_email + '</span></div>'
+        html += f'<div class="info-row"><span class="info-label">Email</span><span class="info-value">{user_email}</span></div>'
         html += '<div class="info-row"><span class="info-label">Account Type</span><span class="info-value">Guest Access</span></div>'
         html += '</div>'
-        html += '<div class="warning-box"><strong>👤 Guest Mode:</strong> You are currently using MediFederate as a guest. To create a permanent account, please logout and register as a doctor.</div>'
+        html += '<div class="warning-box"><strong>👤 Guest Mode:</strong> You are using MediFederate as a guest. To create a permanent account, please logout and register as a doctor.</div>'
         st.markdown(html, unsafe_allow_html=True)
     
     st.markdown("<br>", unsafe_allow_html=True)
@@ -175,20 +178,25 @@ def _render_profile_tab(current_user, is_patient, user_email):
     st.caption("Click the button below to logout of your account")
     
     if st.button("🚪  Logout", use_container_width=True, key="settings_logout_btn"):
-        st.session_state.logged_in = False
+        for key in ['logged_in', 'user', 'token', 'show_chat_page', 'show_settings_page',
+                    'pending_chat_query', 'show_email_page', 'show_website_page',
+                    'show_privacy_page', 'show_terms_page', 'show_forgot_password',
+                    'welcome_toast_shown']:
+            if key in st.session_state:
+                if key == 'logged_in':
+                    st.session_state[key] = False
+                else:
+                    st.session_state[key] = None if key == 'user' else False
         st.session_state.user = None
-        st.session_state.show_chat_page = False
-        st.session_state.show_settings_page = False
-        st.session_state.welcome_toast_shown = False
+        st.session_state.token = None
         st.rerun()
 
 
 def _render_security_tab(current_user, is_patient, user_email):
-    """Security tab content"""
-    st.markdown("""
-    <div class="setting-section">
-        <div class="setting-section-title">🔐 Change Password</div>
-    """, unsafe_allow_html=True)
+    """Security tab — real password change via backend"""
+    st.markdown('<div class="setting-section">', unsafe_allow_html=True)
+    st.markdown('<div class="setting-section-title">🔐 Change Password</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
     
     if is_patient:
         st.info("👤 Guest users do not have a password. Please logout to create an account.")
@@ -208,37 +216,51 @@ def _render_security_tab(current_user, is_patient, user_email):
                 elif len(new_password) < 6:
                     st.error("⚠️ Password must be at least 6 characters.")
                 else:
-                    success, msg, _ = auth.login(user_email, current_password)
-                    if not success:
-                        st.error("❌ Current password is incorrect.")
+                    token = st.session_state.get('token')
+                    if not token:
+                        st.error("❌ Session expired. Please login again.")
                     else:
-                        success2, msg2 = auth.reset_password(user_email, new_password)
-                        if success2:
-                            st.success("✅ Password updated successfully!")
-                        else:
-                            st.error("❌ " + msg2)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+                        try:
+                            response = requests.post(
+                                f"{BACKEND_URL}/auth/change-password",
+                                json={
+                                    "current_password": current_password,
+                                    "new_password": new_password
+                                },
+                                headers={"Authorization": f"Bearer {token}"},
+                                timeout=15
+                            )
+                            if response.status_code == 200:
+                                st.success("✅ Password updated successfully!")
+                            else:
+                                try:
+                                    detail = response.json().get("detail", "Failed")
+                                except Exception:
+                                    detail = "Failed to update password"
+                                st.error(f"❌ {detail}")
+                        except requests.exceptions.ConnectionError:
+                            st.error("❌ Cannot connect to backend. Is the server running?")
+                        except Exception as e:
+                            st.error(f"❌ Error: {str(e)}")
     
     st.markdown("""
     <div class="setting-section">
         <div class="setting-section-title">🖥️ Session Information</div>
         <div class="info-row"><span class="info-label">Current Session</span><span class="info-value" style="color: #10b981;">● Active</span></div>
-        <div class="info-row"><span class="info-label">Login Time</span><span class="info-value">Just now</span></div>
-        <div class="info-row"><span class="info-label">Browser</span><span class="info-value">Active</span></div>
+        <div class="info-row"><span class="info-label">Auth Method</span><span class="info-value">JWT (HS256)</span></div>
+        <div class="info-row"><span class="info-label">Backend</span><span class="info-value">FastAPI + SQLAlchemy</span></div>
     </div>
     """, unsafe_allow_html=True)
 
 
 def _render_preferences_tab():
-    """Preferences tab content"""
     st.markdown("""
     <div class="setting-section">
         <div class="setting-section-title">🎨 Display Preferences</div>
     """, unsafe_allow_html=True)
     
-    theme = st.selectbox("Theme", ["Dark (Default)", "Light"], key="pref_theme")
-    language = st.selectbox("Preferred Language", ["English"], index=0, key="pref_lang")
+    st.selectbox("Theme", ["Dark (Default)", "Light"], key="pref_theme")
+    st.selectbox("Preferred Language", ["English"], index=0, key="pref_lang")
     
     st.markdown('</div>', unsafe_allow_html=True)
     
@@ -276,7 +298,6 @@ def _render_preferences_tab():
 
 
 def _render_activity_tab(user_email):
-    """Activity tab content"""
     try:
         stats = hist.get_statistics(user_email=user_email)
     except Exception:
@@ -291,65 +312,23 @@ def _render_activity_tab(user_email):
     
     with col1:
         st.markdown(
-            '<div class="stat-mini-card">'
-            '<div class="stat-mini-value">' + str(stats['total']) + '</div>'
-            '<div class="stat-mini-label">Predictions</div>'
-            '</div>',
-            unsafe_allow_html=True
-        )
+            f'<div class="stat-mini-card"><div class="stat-mini-value">{stats["total"]}</div><div class="stat-mini-label">Predictions</div></div>',
+            unsafe_allow_html=True)
     
     with col2:
         st.markdown(
-            '<div class="stat-mini-card">'
-            '<div class="stat-mini-value" style="background: linear-gradient(135deg, #ef4444, #dc2626); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">'
-            + str(stats['high_risk']) +
-            '</div>'
-            '<div class="stat-mini-label">High Risk</div>'
-            '</div>',
-            unsafe_allow_html=True
-        )
+            f'<div class="stat-mini-card"><div class="stat-mini-value" style="background: linear-gradient(135deg, #ef4444, #dc2626); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">{stats["high_risk"]}</div><div class="stat-mini-label">High Risk</div></div>',
+            unsafe_allow_html=True)
     
     with col3:
         st.markdown(
-            '<div class="stat-mini-card">'
-            '<div class="stat-mini-value" style="background: linear-gradient(135deg, #10b981, #059669); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">'
-            + str(stats['low_risk']) +
-            '</div>'
-            '<div class="stat-mini-label">Low Risk</div>'
-            '</div>',
-            unsafe_allow_html=True
-        )
+            f'<div class="stat-mini-card"><div class="stat-mini-value" style="background: linear-gradient(135deg, #10b981, #059669); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">{stats["low_risk"]}</div><div class="stat-mini-label">Low Risk</div></div>',
+            unsafe_allow_html=True)
     
     with col4:
         st.markdown(
-            '<div class="stat-mini-card">'
-            '<div class="stat-mini-value">4</div>'
-            '<div class="stat-mini-label">Diseases</div>'
-            '</div>',
-            unsafe_allow_html=True
-        )
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    st.markdown("""
-    <div class="setting-section">
-        <div class="setting-section-title">🕐 Recent Predictions</div>
-    """, unsafe_allow_html=True)
-    
-    try:
-        recent = hist.get_user_predictions(user_email, limit=5)
-        if not recent.empty:
-            for _, row in recent.iterrows():
-                prob = row['probability'] * 100 if row['probability'] <= 1 else row['probability']
-                html = '<div class="info-row">'
-                html += '<span class="info-label">' + str(row['disease']) + ' · ' + str(row['timestamp']) + '</span>'
-                html += '<span class="info-value">' + str(row['risk_level']) + ' (' + f'{prob:.1f}' + '%)</span>'
-                html += '</div>'
-                st.markdown(html, unsafe_allow_html=True)
-        else:
-            st.info("📭 No predictions yet.")
-    except Exception:
-        st.info("📭 No activity data available.")
+            '<div class="stat-mini-card"><div class="stat-mini-value">5</div><div class="stat-mini-label">Diseases</div></div>',
+            unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
     
@@ -365,16 +344,12 @@ def _render_activity_tab(user_email):
 
 
 def _render_settings_content():
-    """Shared content — used by both dialog and full-page"""
-    current_user = st.session_state.get('user', {})
+    current_user = st.session_state.get('user', {}) or {}
     is_patient = current_user.get('role') == 'patient'
     user_email = current_user.get('email', 'guest@medifederate')
     
     tab1, tab2, tab3, tab4 = st.tabs([
-        "👤 Profile",
-        "🔐 Security",
-        "🎨 Preferences",
-        "📊 Activity"
+        "👤 Profile", "🔐 Security", "🎨 Preferences", "📊 Activity"
     ])
     
     with tab1:
@@ -392,13 +367,11 @@ def _render_settings_content():
 
 @st.dialog("⚙️ Settings & Account", width="large")
 def show_settings_dialog():
-    """Render settings as a popup dialog"""
     inject_settings_css()
     _render_settings_content()
 
 
 def render_settings_page():
-    """Render settings as full page (legacy support)"""
     inject_settings_css()
     
     if st.button("🏠  Back to Dashboard", use_container_width=False, key="back_from_settings"):

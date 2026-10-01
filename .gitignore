@@ -8,6 +8,7 @@ data/diabetic_data.csv
 
 # Local Databases (SQLite)
 *.db
+medifederate.db
 
 # VS Code settings
 .vscode/
@@ -18,3 +19,7 @@ desktop.ini
 
 # Environment Variables (API keys)
 .env
+
+# Backend Cache
+backend/__pycache__/
+backend/**/__pycache__/
