@@ -1,0 +1,1866 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+import pickle
+import os
+from datetime import datetime
+from chatbot import HealthChatbot
+from chat_page import render_chat_page, render_floating_chatbot
+from pdf_generator import generate_medical_report
+import history_db as hist
+import auth
+from login_page import render_login_page, logout
+from info_pages import render_email_page, render_website_page
+from legal_pages import render_privacy_policy, render_terms_of_service
+from settings_page import show_settings_dialog
+import ui_helpers as ui
+
+
+st.set_page_config(
+    page_title="MediFederate | Multi-Disease AI Platform",
+    page_icon="🏥",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+
+# ========================================
+# INFO & LEGAL PAGES SWITCHING
+# ========================================
+for key in ['show_email_page', 'show_website_page', 'show_privacy_page', 'show_terms_page']:
+    if key not in st.session_state:
+        st.session_state[key] = False
+
+if st.session_state.show_email_page:
+    render_email_page(); st.stop()
+if st.session_state.show_website_page:
+    render_website_page(); st.stop()
+if st.session_state.show_privacy_page:
+    render_privacy_policy(); st.stop()
+if st.session_state.show_terms_page:
+    render_terms_of_service(); st.stop()
+
+
+# ========================================
+# AUTHENTICATION CHECK (with auto-login from HTML website)
+# ========================================
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+if 'user' not in st.session_state:
+    st.session_state.user = None
+
+try:
+    query_params = st.query_params
+    autologin = query_params.get('autologin', None)
+    role_param = query_params.get('role', 'patient')
+
+    if autologin == 'true' and not st.session_state.logged_in:
+        role = 'patient' if role_param == 'patient' else 'doctor'
+        st.session_state.logged_in = True
+        st.session_state.user = {
+            'full_name': 'Guest User' if role == 'patient' else 'Guest Doctor',
+            'email': f'guest_{role}@medifederate.com',
+            'role': role
+        }
+        st.query_params.clear()
+        st.rerun()
+except Exception:
+    pass
+
+if not st.session_state.logged_in:
+    render_login_page()
+    st.stop()
+
+
+# ========================================
+# PAGE SWITCHING (Dashboard vs Chat)
+# ========================================
+if 'show_chat_page' not in st.session_state:
+    st.session_state.show_chat_page = False
+
+if st.session_state.show_chat_page:
+    render_chat_page()
+    st.stop()
+
+
+# ========================================
+# LAZY MODEL LOADING
+# ========================================
+@st.cache_resource(show_spinner=False)
+def load_diabetes_model():
+    import tensorflow as tf
+    import pandas as pd
+    from sklearn.preprocessing import StandardScaler
+    try:
+        # Naya DP Model load karein
+        model = tf.keras.models.load_model('federated_model.h5', compile=False)
+        
+        # Optimized data se features aur scaler banayein
+        df = pd.read_csv('data/optimized_data.csv')
+        features = df.drop('readmitted', axis=1).columns.tolist()
+        
+        scaler = StandardScaler()
+        scaler.fit(df.drop('readmitted', axis=1))
+        
+        return {'model': model, 'scaler': scaler, 'features': features}
+    except Exception as e:
+        print(f"Diabetes Model Load Error: {e}")
+        return None
+
+
+@st.cache_resource(show_spinner=False)
+def load_heart_model():
+    import tensorflow as tf
+    try:
+        return {'model': tf.keras.models.load_model('heart_dp_model.keras'),
+                'scaler': pickle.load(open('scaler_heart.pkl', 'rb')),
+                'features': pickle.load(open('feature_names_heart.pkl', 'rb'))}
+    except Exception:
+        return None
+
+
+@st.cache_resource(show_spinner=False)
+def load_stroke_model():
+    import tensorflow as tf
+    try:
+        return {'model': tf.keras.models.load_model('stroke_dp_model.keras'),
+                'scaler': pickle.load(open('scaler_stroke.pkl', 'rb')),
+                'features': pickle.load(open('feature_names_stroke.pkl', 'rb'))}
+    except Exception:
+        return None
+
+
+@st.cache_resource(show_spinner=False)
+def load_kidney_model():
+    import tensorflow as tf
+    try:
+        return {'model': tf.keras.models.load_model('kidney_dp_model.keras'),
+                'scaler': pickle.load(open('scaler_kidney.pkl', 'rb')),
+                'features': pickle.load(open('feature_names_kidney.pkl', 'rb'))}
+    except Exception:
+        return None
+
+
+@st.cache_resource(show_spinner=False)
+def load_thyroid_model():
+    import tensorflow as tf
+    try:
+        return {'model': tf.keras.models.load_model('thyroid_dp_model.keras'),
+                'scaler': pickle.load(open('scaler_thyroid.pkl', 'rb')),
+                'features': pickle.load(open('thyroid_features.pkl', 'rb'))}
+    except Exception:
+        return None
+
+
+def predict_with_model(model_dict, data_dict):
+    if model_dict is None:
+        return None
+    m = model_dict
+    input_df = pd.DataFrame(np.zeros((1, len(m['features']))), columns=m['features'])
+    for key, val in data_dict.items():
+        if key in input_df.columns:
+            input_df[key] = val
+    input_scaled = m['scaler'].transform(input_df)
+    return float(m['model'].predict(input_scaled, verbose=0)[0][0])
+
+
+# ========================================
+# PATIENT INFORMATION HELPER
+# ========================================
+def render_patient_info(form_key):
+    st.markdown("##### 👤 Patient Information")
+    col1, col2 = st.columns(2)
+    with col1:
+        p_name = st.text_input("Patient Full Name", placeholder="Enter patient's full name", key=f"{form_key}_pname")
+        p_father = st.text_input("Father / Husband Name", placeholder="Enter father or husband name", key=f"{form_key}_pfather")
+        p_contact = st.text_input("Contact Number", placeholder="03XX-XXXXXXX", key=f"{form_key}_pcontact")
+    with col2:
+        p_age_input = st.text_input("Age (Years)", placeholder="e.g., 45", key=f"{form_key}_page")
+        p_cnic = st.text_input("CNIC (Optional)", placeholder="XXXXX-XXXXXXX-X", key=f"{form_key}_pcnic")
+        p_address = st.text_input("City / Address", placeholder="e.g., Lahore", key=f"{form_key}_paddress")
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("##### 🩺 Clinical Details")
+    
+    return {
+        "Patient Name": p_name if p_name else "N/A",
+        "Father/Husband Name": p_father if p_father else "N/A",
+        "Contact": p_contact if p_contact else "N/A",
+        "CNIC": p_cnic if p_cnic else "N/A",
+        "City": p_address if p_address else "N/A",
+        "Date of Visit": datetime.now().strftime("%Y-%m-%d"),
+    }
+
+
+# ========================================
+# ULTRA-PREMIUM CSS DESIGN
+# ========================================
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800&display=swap');
+    
+    :root {
+        --primary: #6C63FF;
+        --primary-glow: #8B7FFF;
+        --primary-dark: #5A52D5;
+        --secondary: #FF6584;
+        --secondary-glow: #FF8AA5;
+        --success: #00D9A3;
+        --success-glow: #2DFFBF;
+        --warning: #FFB800;
+        --danger: #FF4757;
+        --info: #3B82F6;
+        --dark-bg: #07071A;
+        --card-bg: #0E0E22;
+        --card-bg-2: #14142B;
+        --card-hover: #1A1A38;
+        --border: rgba(108, 99, 255, 0.18);
+        --border-hover: rgba(108, 99, 255, 0.55);
+        --text-primary: #FFFFFF;
+        --text-secondary: #A8A8C0;
+        --text-muted: #6B6B85;
+    }
+    
+    * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+    
+    html, body, [class*="css"] { 
+        font-family: 'Inter', sans-serif;
+        color: var(--text-primary);
+    }
+    
+    h1, h2, h3, h4, h5, h6 { 
+        font-family: 'Poppins', sans-serif;
+        letter-spacing: -0.5px;
+    }
+    
+    #MainMenu {visibility: hidden;} 
+    footer {visibility: hidden;} 
+    header {visibility: hidden;}
+    
+    section[data-testid="stSidebar"], 
+    [data-testid="stSidebarCollapsedControl"], 
+    [data-testid="collapsedControl"] { 
+        display: none !important; 
+        visibility: hidden !important; 
+        width: 0 !important; 
+    }
+    
+    ::-webkit-scrollbar { width: 12px; height: 12px; }
+    ::-webkit-scrollbar-track { background: #0A0A1A; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, #6C63FF 0%, #FF6584 100%);
+        border-radius: 10px;
+        border: 3px solid #0A0A1A;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, #8B7FFF 0%, #FF8AA5 100%);
+    }
+    
+    .st-key-top_settings_btn, 
+    .st-key-top_chat_btn, 
+    .st-key-top_email_btn, 
+    .st-key-top_web_btn { 
+        position: fixed !important; 
+        z-index: 999999 !important; 
+    }
+    
+    .st-key-top_settings_btn { top: 20px !important; right: 20px !important; }
+    .st-key-top_chat_btn { top: 20px !important; right: 88px !important; }
+    .st-key-top_email_btn { top: 20px !important; right: 156px !important; }
+    .st-key-top_web_btn { top: 20px !important; right: 224px !important; }
+    
+    .st-key-top_settings_btn button, 
+    .st-key-top_chat_btn button, 
+    .st-key-top_email_btn button, 
+    .st-key-top_web_btn button {
+        width: 56px !important; 
+        height: 56px !important; 
+        border-radius: 18px !important; 
+        color: white !important;
+        font-size: 24px !important; 
+        border: none !important;
+        transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important; 
+        padding: 0 !important; 
+        cursor: pointer !important;
+        display: flex !important; 
+        align-items: center !important; 
+        justify-content: center !important; 
+        min-width: 0 !important;
+        box-shadow: 
+            0 8px 24px rgba(0, 0, 0, 0.4),
+            inset 0 -3px 0 rgba(0, 0, 0, 0.2),
+            inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+    }
+    
+    .st-key-top_settings_btn button:hover, 
+    .st-key-top_chat_btn button:hover, 
+    .st-key-top_email_btn button:hover, 
+    .st-key-top_web_btn button:hover {
+        transform: translateY(-4px) scale(1.08) !important;
+    }
+    
+    .st-key-top_settings_btn button { 
+        background: linear-gradient(145deg, #FFC933, #F5A623) !important; 
+        box-shadow: 0 8px 24px rgba(255, 184, 0, 0.5), inset 0 -3px 0 rgba(180, 120, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+    }
+    .st-key-top_chat_btn button { 
+        background: linear-gradient(145deg, #2DFFBF, #00C994) !important; 
+        box-shadow: 0 8px 24px rgba(0, 217, 163, 0.5), inset 0 -3px 0 rgba(0, 140, 110, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+    }
+    .st-key-top_email_btn button { 
+        background: linear-gradient(145deg, #60A5FA, #3B82F6) !important; 
+        box-shadow: 0 8px 24px rgba(59, 130, 246, 0.5), inset 0 -3px 0 rgba(30, 90, 180, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+    }
+    .st-key-top_web_btn button { 
+        background: linear-gradient(145deg, #A78BFA, #8B5CF6) !important; 
+        box-shadow: 0 8px 24px rgba(139, 92, 246, 0.5), inset 0 -3px 0 rgba(90, 60, 180, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+    }
+    
+    .main .block-container { 
+        padding-top: 1.5rem; 
+        padding-bottom: 3rem; 
+        max-width: 1400px; 
+    }
+    
+    .hero-header {
+        background: linear-gradient(135deg, #6C63FF 0%, #8B5CF6 40%, #FF6584 100%);
+        background-size: 200% 200%;
+        animation: gradientShift 8s ease infinite;
+        padding: 55px 50px;
+        border-radius: 28px;
+        color: white;
+        margin-bottom: 40px;
+        box-shadow: 
+            0 30px 80px rgba(108, 99, 255, 0.5),
+            0 0 100px rgba(108, 99, 255, 0.2),
+            inset 0 2px 0 rgba(255, 255, 255, 0.3),
+            inset 0 -2px 0 rgba(0, 0, 0, 0.15);
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    
+    @keyframes gradientShift {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+    }
+    
+    .hero-header::before {
+        content: "";
+        position: absolute;
+        top: -50%; right: -10%;
+        width: 500px; height: 500px;
+        background: radial-gradient(circle, rgba(255,255,255,0.25), transparent 70%);
+        border-radius: 50%;
+        animation: float 6s ease-in-out infinite;
+        pointer-events: none;
+    }
+    
+    .hero-header::after {
+        content: "";
+        position: absolute;
+        bottom: -30%; left: -10%;
+        width: 400px; height: 400px;
+        background: radial-gradient(circle, rgba(255,101,132,0.4), transparent 70%);
+        border-radius: 50%;
+        animation: float 8s ease-in-out infinite reverse;
+        pointer-events: none;
+    }
+    
+    @keyframes float {
+        0%, 100% { transform: translateY(0px) scale(1); }
+        50% { transform: translateY(-30px) scale(1.05); }
+    }
+    
+    .hero-title { 
+        font-size: 3.2rem; 
+        font-weight: 900; 
+        margin: 0; 
+        letter-spacing: -2px; 
+        position: relative; 
+        z-index: 2;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2), 0 8px 40px rgba(0, 0, 0, 0.15);
+    }
+    
+    .hero-subtitle { 
+        font-size: 1.2rem; 
+        font-weight: 400; 
+        opacity: 0.98; 
+        margin-top: 14px; 
+        position: relative; 
+        z-index: 2;
+        line-height: 1.6;
+    }
+    
+    .hero-badge { 
+        display: inline-block; 
+        background: rgba(255, 255, 255, 0.28); 
+        padding: 10px 24px; 
+        border-radius: 30px; 
+        font-size: 0.85rem; 
+        font-weight: 700; 
+        margin-bottom: 20px; 
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        position: relative; 
+        z-index: 2;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    }
+    
+    .metric-card { 
+        background: linear-gradient(145deg, #14142B, #0E0E22);
+        border: 1px solid var(--border);
+        border-radius: 20px; 
+        padding: 28px 22px; 
+        text-align: center; 
+        transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); 
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 
+            0 10px 30px rgba(0, 0, 0, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+    
+    .metric-card::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--primary), var(--secondary), var(--primary));
+        background-size: 200% 100%;
+        animation: slideGradient 3s ease infinite;
+        opacity: 0;
+        transition: opacity 0.4s;
+    }
+    
+    @keyframes slideGradient {
+        0% { background-position: 0% 0%; }
+        100% { background-position: 200% 0%; }
+    }
+    
+    .metric-card:hover { 
+        border-color: var(--border-hover);
+        transform: translateY(-10px) scale(1.02); 
+        box-shadow: 
+            0 30px 60px rgba(108, 99, 255, 0.35),
+            0 0 80px rgba(108, 99, 255, 0.2),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        background: linear-gradient(145deg, #1A1A38, #14142B);
+    }
+    
+    .metric-card:hover::before { opacity: 1; }
+    
+    .metric-value { 
+        font-size: 2.6rem; 
+        font-weight: 900; 
+        background: linear-gradient(135deg, #8B7FFF 0%, #FF6584 100%);
+        -webkit-background-clip: text; 
+        -webkit-text-fill-color: transparent; 
+        background-clip: text; 
+        margin: 12px 0;
+        font-family: 'Poppins', sans-serif;
+        letter-spacing: -2px;
+        filter: drop-shadow(0 4px 12px rgba(108, 99, 255, 0.3));
+    }
+    
+    .metric-label { 
+        font-size: 0.78rem; 
+        color: var(--text-secondary); 
+        font-weight: 700; 
+        text-transform: uppercase; 
+        letter-spacing: 2px; 
+    }
+    
+    .feature-card { 
+        background: linear-gradient(145deg, #14142B, #0E0E22);
+        border-left: 4px solid var(--primary);
+        border-radius: 16px; 
+        padding: 26px; 
+        margin-bottom: 18px; 
+        transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); 
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+    
+    .feature-card:hover {
+        transform: translateX(10px) scale(1.01);
+        border-left-color: var(--secondary);
+        box-shadow: 0 20px 40px rgba(108, 99, 255, 0.3), 0 0 60px rgba(108, 99, 255, 0.15);
+        background: linear-gradient(145deg, #1A1A38, #14142B);
+    }
+    
+    .feature-title { 
+        font-size: 1.2rem; 
+        font-weight: 800; 
+        color: var(--text-primary); 
+        margin-bottom: 10px;
+        font-family: 'Poppins', sans-serif;
+    }
+    
+    .feature-desc { 
+        font-size: 0.95rem; 
+        color: var(--text-secondary); 
+        line-height: 1.65; 
+    }
+    
+    .section-header { 
+        font-size: 1.75rem; 
+        font-weight: 800; 
+        color: var(--text-primary); 
+        margin: 45px 0 28px 0; 
+        padding-bottom: 14px;
+        border-bottom: 2px solid transparent;
+        background-image: linear-gradient(90deg, var(--primary), var(--secondary), transparent);
+        background-repeat: no-repeat;
+        background-position: bottom left;
+        background-size: 100% 3px;
+        font-family: 'Poppins', sans-serif;
+        letter-spacing: -0.8px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .contact-card { 
+        background: linear-gradient(145deg, #14142B, #0E0E22);
+        border: 1px solid var(--border);
+        border-radius: 16px; 
+        padding: 22px; 
+        margin-bottom: 18px; 
+        transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+    
+    .contact-card:hover {
+        border-color: var(--border-hover);
+        transform: translateY(-6px);
+        box-shadow: 0 20px 40px rgba(108, 99, 255, 0.3), 0 0 60px rgba(108, 99, 255, 0.15);
+    }
+    
+    .contact-card .contact-icon { font-size: 2.2rem; margin-bottom: 12px; display: inline-block; filter: drop-shadow(0 4px 8px rgba(108, 99, 255, 0.3)); }
+    .contact-card .contact-title { color: var(--text-primary); font-weight: 800; font-size: 1.1rem; margin-bottom: 8px; font-family: 'Poppins', sans-serif; }
+    .contact-card .contact-info { color: var(--text-secondary); font-size: 0.92rem; line-height: 1.7; }
+    .contact-card .contact-info strong { color: var(--success); font-size: 1.15rem; font-weight: 800; text-shadow: 0 0 20px rgba(0, 217, 163, 0.5); }
+    
+    .emergency-badge { 
+        display: inline-block; 
+        background: linear-gradient(135deg, rgba(255, 71, 87, 0.3), rgba(255, 71, 87, 0.15)); 
+        color: #FF8AA5; 
+        padding: 5px 14px; 
+        border-radius: 10px; 
+        font-size: 0.72rem; 
+        font-weight: 800; 
+        text-transform: uppercase; 
+        margin-bottom: 12px;
+        letter-spacing: 1px;
+        border: 1px solid rgba(255, 71, 87, 0.4);
+        box-shadow: 0 0 20px rgba(255, 71, 87, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+    
+    .gallery-card { 
+        background: linear-gradient(145deg, #14142B, #0E0E22);
+        border: 1px solid var(--border);
+        border-radius: 20px; 
+        overflow: hidden; 
+        margin-bottom: 24px; 
+        height: 100%;
+        transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+    
+    .gallery-card:hover { 
+        border-color: var(--border-hover);
+        transform: translateY(-12px) scale(1.02); 
+        box-shadow: 0 35px 70px rgba(108, 99, 255, 0.4), 0 0 100px rgba(108, 99, 255, 0.2);
+    }
+    
+    .gallery-image { width: 100%; height: 200px; object-fit: cover; display: block; transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+    .gallery-card:hover .gallery-image { transform: scale(1.1); }
+    .gallery-body { padding: 22px 24px 26px 24px; }
+    .gallery-category { 
+        display: inline-block; padding: 5px 14px; border-radius: 12px; font-size: 0.7rem; font-weight: 800; 
+        text-transform: uppercase; background: linear-gradient(135deg, rgba(108, 99, 255, 0.25), rgba(255, 101, 132, 0.25));
+        color: #A78BFA; margin-bottom: 14px; letter-spacing: 1.2px; border: 1px solid rgba(108, 99, 255, 0.35);
+        box-shadow: 0 0 20px rgba(108, 99, 255, 0.2);
+    }
+    .gallery-title { font-size: 1.25rem; font-weight: 800; color: var(--text-primary); margin-bottom: 10px; font-family: 'Poppins', sans-serif; }
+    .gallery-desc { font-size: 0.92rem; color: var(--text-secondary); line-height: 1.65; }
+    
+    .stTabs [data-baseweb="tab-list"] { 
+        gap: 12px !important; 
+        background: linear-gradient(145deg, #0A0A1A, #14142B) !important; 
+        padding: 14px 16px !important; 
+        border-radius: 24px !important; 
+        border-bottom: none !important; 
+        flex-wrap: wrap !important;
+        border: 1px solid rgba(108, 99, 255, 0.15);
+        box-shadow: 
+            inset 0 3px 12px rgba(0, 0, 0, 0.5),
+            inset 0 -1px 0 rgba(255, 255, 255, 0.05),
+            0 12px 40px rgba(0, 0, 0, 0.4);
+    }
+    
+    .stTabs [data-baseweb="tab"] { 
+        height: 52px !important; 
+        padding: 0 26px !important; 
+        border-radius: 16px !important; 
+        background: linear-gradient(145deg, #1A1A38, #14142B) !important; 
+        color: #A8A8C0 !important; 
+        font-weight: 600 !important; 
+        font-size: 0.95rem !important; 
+        font-family: 'Poppins', sans-serif;
+        border: 1px solid rgba(108, 99, 255, 0.18) !important;
+        transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+        position: relative !important;
+        overflow: hidden !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 -2px 0 rgba(0, 0, 0, 0.2) !important;
+        letter-spacing: 0.3px;
+        outline: none !important;
+    }
+    
+    .stTabs [data-baseweb="tab"]:hover {
+        background: linear-gradient(145deg, #2A2A55, #1A1A38) !important;
+        color: #FFFFFF !important;
+        border-color: rgba(108, 99, 255, 0.5) !important;
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 12px 28px rgba(108, 99, 255, 0.35), 0 0 40px rgba(108, 99, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+    }
+    
+    .stTabs [aria-selected="true"] { 
+        background: linear-gradient(145deg, #8B7FFF, #6C63FF 50%, #5A52D5) !important; 
+        color: #FFFFFF !important; 
+        font-weight: 800 !important;
+        border: 1px solid rgba(139, 127, 255, 0.6) !important;
+        transform: translateY(-3px) scale(1.03);
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        letter-spacing: 0.5px;
+        animation: tabPulse 2.5s ease-in-out infinite;
+    }
+    
+    @keyframes tabPulse {
+        0%, 100% { 
+            box-shadow: 
+                0 12px 32px rgba(108, 99, 255, 0.7),
+                0 0 50px rgba(108, 99, 255, 0.4),
+                inset 0 -3px 0 rgba(0, 0, 0, 0.25),
+                inset 0 1px 0 rgba(255, 255, 255, 0.4);
+        }
+        50% { 
+            box-shadow: 
+                0 12px 40px rgba(108, 99, 255, 0.9),
+                0 0 70px rgba(108, 99, 255, 0.6),
+                inset 0 -3px 0 rgba(0, 0, 0, 0.25),
+                inset 0 1px 0 rgba(255, 255, 255, 0.5);
+        }
+    }
+    
+    .stTabs [aria-selected="true"]::after {
+        content: "";
+        position: absolute;
+        top: 8px; right: 10px;
+        width: 8px; height: 8px;
+        background: #2DFFBF;
+        border-radius: 50%;
+        box-shadow: 0 0 10px #2DFFBF, 0 0 20px #2DFFBF;
+        animation: livePulse 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes livePulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.6; transform: scale(1.3); }
+    }
+    
+    .stTabs [data-baseweb="tab-highlight"], 
+    .stTabs [data-baseweb="tab-border"] { 
+        background: transparent !important; 
+        display: none !important; 
+    }
+    
+    .stButton > button { 
+        border-radius: 14px !important; 
+        font-weight: 700 !important; 
+        font-family: 'Poppins', sans-serif;
+        border: 1px solid var(--border) !important;
+        background: linear-gradient(145deg, #14142B, #0E0E22) !important;
+        color: var(--text-primary) !important;
+        transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+        padding: 12px 24px !important;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 -2px 0 rgba(0, 0, 0, 0.2) !important;
+        letter-spacing: 0.3px;
+    }
+    
+    .stButton > button:hover {
+        border-color: var(--border-hover) !important;
+        transform: translateY(-3px) !important;
+        box-shadow: 0 14px 32px rgba(108, 99, 255, 0.35), 0 0 50px rgba(108, 99, 255, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+        background: linear-gradient(145deg, #1A1A38, #14142B) !important;
+    }
+    
+    .stButton > button[kind="primary"] { 
+        background: linear-gradient(145deg, #8B7FFF, #6C63FF 50%, #5A52D5) !important; 
+        border: none !important; 
+        color: white !important; 
+        padding: 16px 32px !important; 
+        font-weight: 800 !important;
+        font-size: 1.02rem !important;
+        box-shadow: 0 12px 32px rgba(108, 99, 255, 0.6), 0 0 60px rgba(108, 99, 255, 0.3), inset 0 -3px 0 rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+        letter-spacing: 0.8px;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    
+    .stButton > button[kind="primary"]:hover {
+        transform: translateY(-4px) scale(1.02) !important;
+        box-shadow: 0 20px 45px rgba(108, 99, 255, 0.8), 0 0 80px rgba(108, 99, 255, 0.4), inset 0 -3px 0 rgba(0, 0, 0, 0.25) !important;
+        background: linear-gradient(145deg, #A78BFA, #8B7FFF 50%, #6C63FF) !important;
+    }
+    
+    .stDownloadButton > button { 
+        background: linear-gradient(145deg, #2DFFBF, #00D9A3 50%, #00B88A) !important; 
+        color: white !important; 
+        border: none !important; 
+        border-radius: 14px !important; 
+        padding: 16px 32px !important; 
+        font-weight: 800 !important;
+        font-size: 1.02rem !important;
+        font-family: 'Poppins', sans-serif;
+        box-shadow: 0 12px 32px rgba(0, 217, 163, 0.55), 0 0 60px rgba(0, 217, 163, 0.25), inset 0 -3px 0 rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+        transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+        letter-spacing: 0.5px;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    }
+    
+    .stDownloadButton > button:hover {
+        transform: translateY(-4px) scale(1.02) !important;
+        box-shadow: 0 20px 45px rgba(0, 217, 163, 0.75), 0 0 80px rgba(0, 217, 163, 0.4) !important;
+    }
+    
+    .stNumberInput input, 
+    .stTextInput input { 
+        background: linear-gradient(145deg, #0E0E22, #14142B) !important; 
+        border: 1.5px solid var(--border) !important; 
+        border-radius: 14px !important; 
+        color: var(--text-primary) !important; 
+        padding: 14px 18px !important;
+        transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.98rem;
+        font-weight: 500;
+        box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    
+    .stNumberInput input:focus, 
+    .stTextInput input:focus { 
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 0 4px rgba(108, 99, 255, 0.2), 0 0 30px rgba(108, 99, 255, 0.3), inset 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+        background: linear-gradient(145deg, #14142B, #1A1A38) !important;
+        transform: translateY(-1px);
+    }
+    
+    .stSelectbox > div > div { 
+        background: linear-gradient(145deg, #0E0E22, #14142B) !important; 
+        border: 1.5px solid var(--border) !important; 
+        border-radius: 14px !important;
+        color: var(--text-primary) !important;
+        transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+        box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.3);
+    }
+    
+    div[data-testid="stForm"] { 
+        border: 1px solid var(--border) !important; 
+        border-radius: 24px !important; 
+        padding: 35px !important; 
+        background: linear-gradient(145deg, rgba(20, 20, 43, 0.7), rgba(14, 14, 34, 0.7)) !important;
+        backdrop-filter: blur(20px);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 0 80px rgba(108, 99, 255, 0.1);
+    }
+    
+    label { 
+        color: #D0D0E8 !important; 
+        font-weight: 700 !important; 
+        font-size: 0.92rem !important;
+        font-family: 'Inter', sans-serif;
+        letter-spacing: 0.4px;
+    }
+    
+    [data-testid="stDataFrame"] {
+        border-radius: 18px !important;
+        overflow: hidden;
+        border: 1px solid var(--border) !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+    }
+    
+    [data-testid="stStatusWidget"] {
+        position: fixed !important; 
+        top: 50% !important; 
+        left: 50% !important; 
+        transform: translate(-50%, -50%) !important;
+        z-index: 9999999 !important; 
+        background: linear-gradient(145deg, rgba(20, 20, 43, 0.98), rgba(14, 14, 34, 0.98)) !important;
+        padding: 45px 75px !important;
+        border-radius: 26px !important; 
+        border: 2px solid var(--primary) !important; 
+        min-width: 300px !important;
+        box-shadow: 0 30px 80px rgba(108, 99, 255, 0.6), 0 0 120px rgba(108, 99, 255, 0.3) !important;
+        backdrop-filter: blur(30px);
+    }
+    
+    [data-testid="stStatusWidget"] span { 
+        color: var(--text-primary) !important; 
+        font-weight: 800 !important; 
+        font-size: 17px !important;
+        font-family: 'Poppins', sans-serif;
+    }
+    
+    .stAlert {
+        border-radius: 16px !important;
+        border-left-width: 5px !important;
+        backdrop-filter: blur(15px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+    }
+    
+    [data-testid="stMetric"] {
+        background: linear-gradient(145deg, #14142B, #0E0E22) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 16px !important;
+        padding: 20px !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+    }
+    
+    [data-testid="stMetric"]:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 16px 40px rgba(108, 99, 255, 0.25), 0 0 60px rgba(108, 99, 255, 0.1) !important;
+        border-color: var(--border-hover) !important;
+    }
+    
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .fade-in { animation: fadeInUp 0.7s cubic-bezier(0.34, 1.56, 0.64, 1); }
+    
+    @media (max-width: 768px) {
+        .hero-header { padding: 35px 28px; border-radius: 22px; }
+        .hero-title { font-size: 2.1rem; letter-spacing: -1px; }
+        .hero-subtitle { font-size: 1rem; }
+        .metric-value { font-size: 2rem; }
+        .section-header { font-size: 1.4rem; }
+        .stTabs [data-baseweb="tab"] { height: 42px !important; padding: 0 14px !important; font-size: 0.82rem !important; }
+        .st-key-top_settings_btn { top: 14px !important; right: 14px !important; }
+        .st-key-top_chat_btn { top: 14px !important; right: 78px !important; }
+        .st-key-top_email_btn { top: 14px !important; right: 142px !important; }
+        .st-key-top_web_btn { top: 14px !important; right: 206px !important; }
+        .st-key-top_settings_btn button,
+        .st-key-top_chat_btn button,
+        .st-key-top_email_btn button,
+        .st-key-top_web_btn button { width: 46px !important; height: 46px !important; font-size: 19px !important; border-radius: 14px !important; }
+        div[data-testid="stForm"] { padding: 22px !important; border-radius: 20px !important; }
+    }
+</style>
+""", unsafe_allow_html=True)
+
+ui.inject_ui_css()
+
+
+# ========================================
+# TOP-RIGHT FLOATING BUTTONS
+# ========================================
+current_user = st.session_state.user
+is_patient = current_user.get('role') == 'patient'
+role_label = "Patient" if is_patient else "Doctor"
+user_email = current_user.get('email', 'guest@medifederate')
+avatar_emoji = "👤" if is_patient else "👨‍⚕️"
+
+if st.button(avatar_emoji, key="top_settings_btn", help="Settings & Account"):
+    show_settings_dialog()
+if st.button("💬", key="top_chat_btn", help="Open MediBot Chat"):
+    st.session_state.show_chat_page = True; st.rerun()
+if st.button("📧", key="top_email_btn", help="Email Support"):
+    st.session_state.show_email_page = True; st.rerun()
+if st.button("🌐", key="top_web_btn", help="Visit Website"):
+    st.session_state.show_website_page = True; st.rerun()
+
+
+# ========================================
+# HERO HEADER
+# ========================================
+st.markdown(f"""
+<div class="hero-header">
+    <div class="hero-badge">🏆 Final Year Project 2026</div>
+    <h1 class="hero-title">🏥 MediFederate</h1>
+    <p class="hero-subtitle">Welcome, <strong>{current_user['full_name']}</strong> ({role_label}) · Privacy-Preserving Multi-Disease Prediction Platform</p>
+</div>
+""", unsafe_allow_html=True)
+
+
+# ========================================
+# MAIN TABS
+# ========================================
+if is_patient:
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab_gallery, tab_contacts = st.tabs([
+        "📈 Overview", "🩸 Diabetes", "❤️ Heart Disease", "🧠 Stroke",
+        "🫘 Kidney", "🧬 Thyroid", "🩺 Live Prediction", "🔍 Explainable AI", "🏥 Gallery", "📞 Contacts"])
+    tab_analytics = None
+    tab_history = None
+else:
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab_analytics, tab_gallery, tab_contacts, tab_history = st.tabs([
+        "📈 Overview", "🩸 Diabetes", "❤️ Heart Disease", "🧠 Stroke",
+        "🫘 Kidney", "🧬 Thyroid", "🩺 Live Prediction", "🔍 Explainable AI", "📊 Analytics", "🏥 Gallery", "📞 Contacts", "📜 History"])
+
+
+# ========================================
+# TAB 1: OVERVIEW
+# ========================================
+with tab1:
+    st.markdown('<div class="section-header">📊 Platform Performance Dashboard</div>', unsafe_allow_html=True)
+    st.markdown("MediFederate enables multiple hospitals to collaboratively train AI models **without sharing any patient data**.")
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    col1, col2, col3, col4, col5 = st.columns(5)
+    with col1: ui.animated_metric_card("🩸", "Diabetes", "61.44%", "100,244 patients", "Privacy Enabled", "success")
+    with col2: ui.animated_metric_card("❤️", "Heart Disease", "88.52%", "303 patients", "⭐ Best", "warning")
+    with col3: ui.animated_metric_card("🧠", "Stroke", "72.90%", "5,109 patients", "80% Recall", "info")
+    with col4: ui.animated_metric_card("🫘", "Kidney", "100%", "400 patients", "🎯 Excellent", "success")
+    with col5: ui.animated_metric_card("🧬", "Thyroid", "90.36%", "8,865 patients", "⭐ Improved", "success")
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown('<div class="section-header">📊 Model Comparison</div>', unsafe_allow_html=True)
+    col_a, col_b = st.columns([1, 1])
+    with col_a:
+        comparison = pd.DataFrame({
+            "Disease": ["Diabetes", "Heart Disease", "Stroke", "Kidney Disease", "Thyroid"],
+            "Accuracy (%)": [61.44, 88.52, 72.90, 100.00, 90.36],
+            "Data Shared": ["0 B"]*5, "Privacy": ["✅ DP"]*5})
+        st.dataframe(comparison, width='stretch', hide_index=True)
+    with col_b:
+        fig = ui.plotly_model_comparison(comparison)
+        st.plotly_chart(fig, width='stretch', config={'displayModeBar': False}, key="overview_chart")
+    
+    st.success("✅ **5 diseases** predicted using real trained neural networks with Federated Learning + Differential Privacy — **ZERO patient data shared!**")
+
+
+# ========================================
+# TAB 2: DIABETES
+# ========================================
+with tab2:
+    st.markdown('<div class="section-header">🩸 Diabetes Readmission Prediction</div>', unsafe_allow_html=True)
+    col_info1, col_info2, col_info3 = st.columns(3)
+    with col_info1: st.metric("Accuracy", "61.44%", "Privacy Enabled")
+    with col_info2: st.metric("Training Data", "100,244 patients")
+    with col_info3: st.metric("Privacy", "✅ DP Enabled")
+    st.markdown("---")
+    
+    with st.form("diabetes_form"):
+        pat_info = render_patient_info("d")
+        col1, col2 = st.columns(2)
+        with col1:
+            age = st.number_input("Age (Clinical)", min_value=5, max_value=95, value=55, step=1, key="d_age")
+            time_hosp = st.number_input("Time in Hospital (days)", min_value=1, max_value=14, value=5, step=1, key="d_time")
+            meds = st.number_input("Number of Medications", min_value=1, max_value=81, value=15, step=1, key="d_meds")
+            lab = st.number_input("Lab Procedures", min_value=1, max_value=132, value=45, step=1, key="d_lab")
+        with col2:
+            diag = st.number_input("Number of Diagnoses", min_value=1, max_value=16, value=7, step=1, key="d_diag")
+            proc = st.number_input("Procedures", min_value=0, max_value=6, value=2, step=1, key="d_proc")
+            inpat = st.number_input("Previous Inpatient Visits", min_value=0, max_value=21, value=0, step=1, key="d_inpat")
+            emerg = st.number_input("Previous Emergency Visits", min_value=0, max_value=76, value=0, step=1, key="d_emerg")
+        st.markdown("<br>", unsafe_allow_html=True)
+        submitted = st.form_submit_button("🔮 Predict Diabetes Risk", type="primary", width='stretch')
+    
+    if submitted:
+        lp = st.empty()
+        with lp.container(): ui.prediction_loading_animation("Diabetes")
+        model = load_diabetes_model()
+        data = {'age': age, 'time_in_hospital': time_hosp, 'num_medications': meds, 'num_lab_procedures': lab,
+                'number_diagnoses': diag, 'num_procedures': proc, 'number_inpatient': inpat, 'number_emergency': emerg}
+        prob = predict_with_model(model, data); lp.empty()
+        
+        if prob is not None:
+            st.info(f"**Patient:** {pat_info['Patient Name']} · Age {age} · {time_hosp} days in hospital")
+            pct = prob * 100
+            ui.result_card_with_animation(prob > 0.5,
+                "High Risk of Readmission" if prob > 0.5 else "Low Risk of Readmission", pct,
+                "High probability of readmission. Close monitoring is recommended." if prob > 0.5 else "Low probability of readmission. Standard follow-up is sufficient.")
+            hist.save_prediction("Diabetes", prob, "High Risk" if prob > 0.5 else "Low Risk",
+                f"Patient: {pat_info['Patient Name']}, Age: {age}", user_email=user_email)
+            report_data = dict(pat_info)
+            report_data.update({"Age": age, "Time in Hospital (days)": time_hosp, "Number of Medications": meds,
+                 "Lab Procedures": lab, "Number of Diagnoses": diag, "Procedures": proc,
+                 "Previous Inpatient Visits": inpat, "Previous Emergency Visits": emerg})
+            pdf_bytes = generate_medical_report("Diabetes", report_data,
+                {"probability": prob, "is_high_risk": prob > 0.5, "summary": f"Patient has {pct:.1f}% probability of readmission."})
+            st.download_button("📄  Download PDF Report", data=pdf_bytes,
+                file_name=f"MediFederate_Diabetes_{pat_info['Patient Name'].replace(' ','_')}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                mime="application/pdf", width='stretch', key="d_download_btn")
+        else: st.error("⚠️ Diabetes model not loaded.")
+
+
+# ========================================
+# TAB 3: HEART DISEASE
+# ========================================
+with tab3:
+    st.markdown('<div class="section-header">❤️ Heart Disease Prediction</div>', unsafe_allow_html=True)
+    col_info1, col_info2, col_info3 = st.columns(3)
+    with col_info1: st.metric("Accuracy", "88.52%", "⭐ Best Model")
+    with col_info2: st.metric("Training Data", "303 patients")
+    with col_info3: st.metric("Privacy", "✅ DP Enabled")
+    st.markdown("---")
+    
+    with st.form("heart_form"):
+        pat_info = render_patient_info("h")
+        col1, col2 = st.columns(2)
+        with col1:
+            age_h = st.number_input("Age (Clinical)", min_value=20, max_value=90, value=55, step=1, key="h_age")
+            sex_h = st.selectbox("Gender", ["Male", "Female"], key="h_sex")
+            cp_h = st.selectbox("Chest Pain Type", [0, 1, 2, 3], format_func=lambda x: {0:"0 - Typical Angina",1:"1 - Atypical Angina",2:"2 - Non-anginal Pain",3:"3 - Asymptomatic"}[x], key="h_cp")
+            trestbps = st.number_input("Resting BP (mm Hg)", min_value=90, max_value=200, value=130, step=1, key="h_bp")
+            chol = st.number_input("Cholesterol (mg/dl)", min_value=100, max_value=600, value=240, step=1, key="h_chol")
+            fbs = st.selectbox("Fasting Blood Sugar > 120", ["No", "Yes"], key="h_fbs")
+        with col2:
+            restecg = st.selectbox("Resting ECG", [0, 1, 2], format_func=lambda x: {0:"0 - Normal",1:"1 - ST-T Abnormality",2:"2 - LV Hypertrophy"}[x], key="h_ecg")
+            thalach = st.number_input("Max Heart Rate", min_value=70, max_value=210, value=150, step=1, key="h_hr")
+            exang = st.selectbox("Exercise Induced Angina", ["No", "Yes"], key="h_exang")
+            oldpeak = st.number_input("ST Depression", min_value=0.0, max_value=7.0, value=1.0, step=0.1, key="h_old")
+            slope = st.selectbox("Slope", [0, 1, 2], key="h_slope")
+            ca = st.number_input("Major Vessels (0-3)", min_value=0, max_value=3, value=0, step=1, key="h_ca")
+            thal = st.selectbox("Thalassemia", [1, 2, 3], key="h_thal")
+        st.markdown("<br>", unsafe_allow_html=True)
+        submitted = st.form_submit_button("🔮 Predict Heart Disease", type="primary", width='stretch')
+    
+    if submitted:
+        lp = st.empty()
+        with lp.container(): ui.prediction_loading_animation("Heart Disease")
+        model = load_heart_model()
+        data = {'age': age_h, 'sex': 1.0 if sex_h == "Male" else 0.0, 'cp': float(cp_h), 'trestbps': float(trestbps),
+                'chol': float(chol), 'fbs': 1.0 if fbs == "Yes" else 0.0, 'restecg': float(restecg),
+                'thalach': float(thalach), 'exang': 1.0 if exang == "Yes" else 0.0, 'oldpeak': float(oldpeak),
+                'slope': float(slope), 'ca': float(ca), 'thal': float(thal)}
+        prob = predict_with_model(model, data); lp.empty()
+        
+        if prob is not None:
+            st.info(f"**Patient:** {pat_info['Patient Name']} · Age {age_h} · {sex_h} · BP {trestbps}")
+            pct = prob * 100
+            ui.result_card_with_animation(prob > 0.5,
+                "High Risk of Heart Disease" if prob > 0.5 else "Low Risk of Heart Disease", pct,
+                "Signs of heart disease. Further cardiac evaluation recommended." if prob > 0.5 else "Low risk for heart disease. Routine checkup sufficient.")
+            hist.save_prediction("Heart Disease", prob, "High Risk" if prob > 0.5 else "Low Risk",
+                f"Patient: {pat_info['Patient Name']}, Age: {age_h}, BP: {trestbps}", user_email=user_email)
+            report_data = dict(pat_info)
+            report_data.update({"Age": age_h, "Gender": sex_h, "Chest Pain Type": cp_h, "Resting BP (mm Hg)": trestbps,
+                 "Cholesterol (mg/dl)": chol, "Fasting Blood Sugar > 120": fbs, "Resting ECG": restecg,
+                 "Max Heart Rate": thalach, "Exercise Induced Angina": exang, "ST Depression": oldpeak,
+                 "Slope": slope, "Major Vessels": ca, "Thalassemia": thal})
+            pdf_bytes = generate_medical_report("Heart Disease", report_data,
+                {"probability": prob, "is_high_risk": prob > 0.5, "summary": f"Patient has {pct:.1f}% probability of heart disease."})
+            st.download_button("📄  Download PDF Report", data=pdf_bytes,
+                file_name=f"MediFederate_Heart_{pat_info['Patient Name'].replace(' ','_')}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                mime="application/pdf", width='stretch', key="h_download_btn")
+        else: st.error("⚠️ Heart model not loaded.")
+
+
+# ========================================
+# TAB 4: STROKE
+# ========================================
+with tab4:
+    st.markdown('<div class="section-header">🧠 Stroke Prediction</div>', unsafe_allow_html=True)
+    col_info1, col_info2, col_info3 = st.columns(3)
+    with col_info1: st.metric("Accuracy", "72.90%", "80% Recall")
+    with col_info2: st.metric("Training Data", "5,109 patients")
+    with col_info3: st.metric("Privacy", "✅ DP Enabled")
+    st.markdown("---")
+    
+    with st.form("stroke_form"):
+        pat_info = render_patient_info("s")
+        col1, col2 = st.columns(2)
+        with col1:
+            age_s = st.number_input("Age (Clinical)", min_value=1, max_value=90, value=55, step=1, key="s_age")
+            gender_s = st.selectbox("Gender", ["Male", "Female"], key="s_gender")
+            hyp = st.selectbox("Hypertension", ["No", "Yes"], key="s_hyp")
+            heart = st.selectbox("Heart Disease", ["No", "Yes"], key="s_heart")
+            married = st.selectbox("Ever Married", ["No", "Yes"], key="s_mar")
+        with col2:
+            glucose = st.number_input("Average Glucose Level", min_value=50.0, max_value=300.0, value=100.0, step=0.1, key="s_gluc")
+            bmi = st.number_input("BMI", min_value=10.0, max_value=60.0, value=25.0, step=0.1, key="s_bmi")
+            work = st.selectbox("Work Type", ["Private", "Self-employed", "Govt_job", "children", "Never_worked"], key="s_work")
+            residence = st.selectbox("Residence", ["Urban", "Rural"], key="s_res")
+            smoking = st.selectbox("Smoking Status", ["never smoked", "formerly smoked", "smokes", "Unknown"], key="s_smoke")
+        st.markdown("<br>", unsafe_allow_html=True)
+        submitted = st.form_submit_button("🔮 Predict Stroke Risk", type="primary", width='stretch')
+    
+    if submitted:
+        lp = st.empty()
+        with lp.container(): ui.prediction_loading_animation("Stroke")
+        model = load_stroke_model()
+        data = {'gender': 1.0 if gender_s == "Male" else 0.0, 'age': float(age_s),
+                'hypertension': 1.0 if hyp == "Yes" else 0.0, 'heart_disease': 1.0 if heart == "Yes" else 0.0,
+                'ever_married': 1.0 if married == "Yes" else 0.0, 'Residence_type': 1.0 if residence == "Urban" else 0.0,
+                'avg_glucose_level': float(glucose), 'bmi': float(bmi),
+                'smoking_status': {'never smoked': 0.0, 'formerly smoked': 1.0, 'smokes': 2.0, 'Unknown': 3.0}[smoking]}
+        for wt in ['Never_worked', 'Private', 'Self-employed', 'children']:
+            data[f'work_type_{wt}'] = 1.0 if work == wt else 0.0
+        prob = predict_with_model(model, data); lp.empty()
+        
+        if prob is not None:
+            st.info(f"**Patient:** {pat_info['Patient Name']} · Age {age_s} · Glucose {glucose}")
+            pct = prob * 100
+            ui.result_card_with_animation(prob > 0.5,
+                "High Risk of Stroke" if prob > 0.5 else "Low Risk of Stroke", pct,
+                "High risk of stroke. Immediate medical consultation recommended." if prob > 0.5 else "Low risk of stroke. Maintain a healthy lifestyle.")
+            hist.save_prediction("Stroke", prob, "High Risk" if prob > 0.5 else "Low Risk",
+                f"Patient: {pat_info['Patient Name']}, Age: {age_s}, Glucose: {glucose}", user_email=user_email)
+            report_data = dict(pat_info)
+            report_data.update({"Age": age_s, "Gender": gender_s, "Hypertension": hyp, "Heart Disease": heart,
+                 "Ever Married": married, "Average Glucose Level": glucose, "BMI": bmi,
+                 "Work Type": work, "Residence": residence, "Smoking Status": smoking})
+            pdf_bytes = generate_medical_report("Stroke", report_data,
+                {"probability": prob, "is_high_risk": prob > 0.5, "summary": f"Patient has {pct:.1f}% probability of stroke."})
+            st.download_button("📄  Download PDF Report", data=pdf_bytes,
+                file_name=f"MediFederate_Stroke_{pat_info['Patient Name'].replace(' ','_')}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                mime="application/pdf", width='stretch', key="s_download_btn")
+        else: st.error("⚠️ Stroke model not loaded.")
+
+
+# ========================================
+# TAB 5: KIDNEY DISEASE
+# ========================================
+with tab5:
+    st.markdown('<div class="section-header">🫘 Kidney Disease Prediction</div>', unsafe_allow_html=True)
+    col_info1, col_info2, col_info3 = st.columns(3)
+    with col_info1: st.metric("Accuracy", "100%", "🎯 Excellent")
+    with col_info2: st.metric("Training Data", "400 patients")
+    with col_info3: st.metric("Privacy", "✅ DP Enabled")
+    st.markdown("---")
+    
+    with st.form("kidney_form"):
+        pat_info = render_patient_info("k")
+        col1, col2 = st.columns(2)
+        with col1:
+            age_k = st.number_input("Age (Clinical)", min_value=1, max_value=100, value=50, step=1, key="k_age")
+            bp_k = st.number_input("Blood Pressure (mm Hg)", min_value=50, max_value=180, value=80, step=1, key="k_bp")
+            sg_k = st.number_input("Specific Gravity", min_value=1.005, max_value=1.025, value=1.020, step=0.005, format="%.3f", key="k_sg")
+            al_k = st.number_input("Albumin (0-5)", min_value=0, max_value=5, value=1, step=1, key="k_al")
+            su_k = st.number_input("Sugar (0-5)", min_value=0, max_value=5, value=0, step=1, key="k_su")
+            bgr_k = st.number_input("Blood Glucose Random", min_value=50, max_value=500, value=120, step=1, key="k_bgr")
+            bu_k = st.number_input("Blood Urea", min_value=10, max_value=400, value=40, step=1, key="k_bu")
+            sc_k = st.number_input("Serum Creatinine", min_value=0.5, max_value=20.0, value=1.2, step=0.1, key="k_sc")
+            sod_k = st.number_input("Sodium", min_value=100, max_value=170, value=140, step=1, key="k_sod")
+            pot_k = st.number_input("Potassium", min_value=2.0, max_value=50.0, value=4.5, step=0.1, key="k_pot")
+        with col2:
+            hemo_k = st.number_input("Hemoglobin", min_value=3.0, max_value=20.0, value=14.0, step=0.1, key="k_hemo")
+            pcv_k = st.number_input("Packed Cell Volume", min_value=10, max_value=60, value=40, step=1, key="k_pcv")
+            wc_k = st.number_input("White Blood Cell Count", min_value=2000, max_value=25000, value=8000, step=100, key="k_wc")
+            rc_k = st.number_input("Red Blood Cell Count", min_value=2.0, max_value=8.0, value=5.0, step=0.1, key="k_rc")
+            htn_k = st.selectbox("Hypertension", ["No", "Yes"], key="k_htn")
+            dm_k = st.selectbox("Diabetes Mellitus", ["No", "Yes"], key="k_dm")
+            cad_k = st.selectbox("Coronary Artery Disease", ["No", "Yes"], key="k_cad")
+            appet_k = st.selectbox("Appetite", ["Good", "Poor"], key="k_appet")
+            pe_k = st.selectbox("Pedal Edema", ["No", "Yes"], key="k_pe")
+            ane_k = st.selectbox("Anemia", ["No", "Yes"], key="k_ane")
+        st.markdown("<br>", unsafe_allow_html=True)
+        submitted = st.form_submit_button("🔮 Predict Kidney Disease", type="primary", width='stretch')
+    
+    if submitted:
+        lp = st.empty()
+        with lp.container(): ui.prediction_loading_animation("Kidney Disease")
+        model = load_kidney_model()
+        data = {'age': float(age_k), 'bp': float(bp_k), 'sg': float(sg_k), 'al': float(al_k),
+                'su': float(su_k), 'bgr': float(bgr_k), 'bu': float(bu_k), 'sc': float(sc_k),
+                'sod': float(sod_k), 'pot': float(pot_k), 'hemo': float(hemo_k), 'pcv': float(pcv_k),
+                'wc': float(wc_k), 'rc': float(rc_k),
+                'htn': 1.0 if htn_k == "Yes" else 0.0, 'dm': 1.0 if dm_k == "Yes" else 0.0,
+                'cad': 1.0 if cad_k == "Yes" else 0.0, 'appet': 1.0 if appet_k == "Good" else 0.0,
+                'pe': 1.0 if pe_k == "Yes" else 0.0, 'ane': 1.0 if ane_k == "Yes" else 0.0,
+                'rbc': 1.0, 'pc': 1.0, 'pcc': 0.0, 'ba': 0.0}
+        prob = predict_with_model(model, data); lp.empty()
+        
+        if prob is not None:
+            st.info(f"**Patient:** {pat_info['Patient Name']} · Age {age_k} · BP {bp_k} · Creatinine {sc_k}")
+            pct = prob * 100
+            ui.result_card_with_animation(prob > 0.5,
+                "High Risk of Kidney Disease" if prob > 0.5 else "Low Risk of Kidney Disease", pct,
+                "Signs of kidney disease. Immediate nephrology consultation recommended." if prob > 0.5 else "Low risk for kidney disease. Routine checkup sufficient.")
+            hist.save_prediction("Kidney Disease", prob, "High Risk" if prob > 0.5 else "Low Risk",
+                f"Patient: {pat_info['Patient Name']}, Age: {age_k}, Creatinine: {sc_k}", user_email=user_email)
+            report_data = dict(pat_info)
+            report_data.update({"Age": age_k, "Blood Pressure": bp_k, "Hemoglobin": hemo_k, "Serum Creatinine": sc_k,
+                 "Blood Urea": bu_k, "Sodium": sod_k, "Potassium": pot_k,
+                 "Hypertension": htn_k, "Diabetes": dm_k, "Anemia": ane_k})
+            pdf_bytes = generate_medical_report("Kidney Disease", report_data,
+                {"probability": prob, "is_high_risk": prob > 0.5, "summary": f"Patient has {pct:.1f}% probability of kidney disease."})
+            st.download_button("📄  Download PDF Report", data=pdf_bytes,
+                file_name=f"MediFederate_Kidney_{pat_info['Patient Name'].replace(' ','_')}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                mime="application/pdf", width='stretch', key="k_download_btn")
+        else: st.error("⚠️ Kidney model not loaded.")
+
+
+# ========================================
+# TAB 6: THYROID DISEASE
+# ========================================
+with tab6:
+    st.markdown('<div class="section-header">🧬 Thyroid Disease Prediction</div>', unsafe_allow_html=True)
+    col_info1, col_info2, col_info3 = st.columns(3)
+    with col_info1: st.metric("Accuracy", "90.36%", "⭐ Real Data")
+    with col_info2: st.metric("Training Data", "8,865 patients")
+    with col_info3: st.metric("Privacy", "✅ DP Enabled")
+    st.markdown("---")
+    
+    with st.form("thyroid_form"):
+        pat_info = render_patient_info("t")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            t_age = st.number_input("Age (Clinical)", min_value=1, max_value=100, value=45, step=1, key="t_age")
+            t_sex = st.selectbox("Gender", ["Female", "Male"], key="t_sex")
+            t_tsh = st.number_input("TSH Level", min_value=0.0, max_value=50.0, value=2.0, step=0.1, key="t_tsh")
+            t_t3 = st.number_input("T3 Level", min_value=0.0, max_value=10.0, value=1.5, step=0.1, key="t_t3")
+            t_tt4 = st.number_input("TT4 Level", min_value=0.0, max_value=30.0, value=8.0, step=0.1, key="t_tt4")
+            t_t4u = st.number_input("T4U Level", min_value=0.0, max_value=3.0, value=1.0, step=0.1, key="t_t4u")
+            t_fti = st.number_input("FTI Level", min_value=0.0, max_value=30.0, value=8.0, step=0.1, key="t_fti")
+            t_tbg = st.number_input("TBG Level", min_value=0.0, max_value=100.0, value=0.0, step=0.1, key="t_tbg")
+            t_on_thy = st.selectbox("On Thyroxine", ["No", "Yes"], key="t_on_thy")
+            t_query_thy = st.selectbox("Query on Thyroxine", ["No", "Yes"], key="t_query_thy")
+            t_anti_thy = st.selectbox("On Antithyroid Meds", ["No", "Yes"], key="t_anti_thy")
+        with col2:
+            t_sick = st.selectbox("Sick", ["No", "Yes"], key="t_sick")
+            t_pregnant = st.selectbox("Pregnant", ["No", "Yes"], key="t_pregnant")
+            t_surgery = st.selectbox("Thyroid Surgery", ["No", "Yes"], key="t_surgery")
+            t_i131 = st.selectbox("I131 Treatment", ["No", "Yes"], key="t_i131")
+            t_query_hypo = st.selectbox("Query Hypothyroid", ["No", "Yes"], key="t_query_hypo")
+            t_query_hyper = st.selectbox("Query Hyperthyroid", ["No", "Yes"], key="t_query_hyper")
+            t_lithium = st.selectbox("Lithium", ["No", "Yes"], key="t_lithium")
+            t_goitre = st.selectbox("Goitre", ["No", "Yes"], key="t_goitre")
+            t_tumor = st.selectbox("Tumor", ["No", "Yes"], key="t_tumor")
+        with col3:
+            t_hypopit = st.selectbox("Hypopituitary", ["No", "Yes"], key="t_hypopit")
+            t_psych = st.selectbox("Psych", ["No", "Yes"], key="t_psych")
+            t_tsh_meas = st.selectbox("TSH Measured", ["No", "Yes"], key="t_tsh_meas")
+            t_t3_meas = st.selectbox("T3 Measured", ["No", "Yes"], key="t_t3_meas")
+            t_tt4_meas = st.selectbox("TT4 Measured", ["No", "Yes"], key="t_tt4_meas")
+            t_t4u_meas = st.selectbox("T4U Measured", ["No", "Yes"], key="t_t4u_meas")
+            t_fti_meas = st.selectbox("FTI Measured", ["No", "Yes"], key="t_fti_meas")
+            t_tbg_meas = st.selectbox("TBG Measured", ["No", "Yes"], key="t_tbg_meas")
+        st.markdown("<br>", unsafe_allow_html=True)
+        submitted = st.form_submit_button("🔮 Predict Thyroid Risk", type="primary", width='stretch')
+    
+    if submitted:
+        lp = st.empty()
+        with lp.container(): ui.prediction_loading_animation("Thyroid")
+        model = load_thyroid_model()
+        data = {
+            'age': float(t_age), 'sex': 1.0 if t_sex == "Male" else 0.0,
+            'on_thyroxine': 1.0 if t_on_thy == "Yes" else 0.0,
+            'query_on_thyroxine': 1.0 if t_query_thy == "Yes" else 0.0,
+            'on_antithyroid_meds': 1.0 if t_anti_thy == "Yes" else 0.0,
+            'sick': 1.0 if t_sick == "Yes" else 0.0, 'pregnant': 1.0 if t_pregnant == "Yes" else 0.0,
+            'thyroid_surgery': 1.0 if t_surgery == "Yes" else 0.0,
+            'I131_treatment': 1.0 if t_i131 == "Yes" else 0.0,
+            'query_hypothyroid': 1.0 if t_query_hypo == "Yes" else 0.0,
+            'query_hyperthyroid': 1.0 if t_query_hyper == "Yes" else 0.0,
+            'lithium': 1.0 if t_lithium == "Yes" else 0.0, 'goitre': 1.0 if t_goitre == "Yes" else 0.0,
+            'tumor': 1.0 if t_tumor == "Yes" else 0.0, 'hypopituitary': 1.0 if t_hypopit == "Yes" else 0.0,
+            'psych': 1.0 if t_psych == "Yes" else 0.0, 'TSH_measured': 1.0 if t_tsh_meas == "Yes" else 0.0,
+            'TSH': float(t_tsh),
+            'T3_measured': 1.0 if t_t3_meas == "Yes" else 0.0, 'T3': float(t_t3),
+            'TT4_measured': 1.0 if t_tt4_meas == "Yes" else 0.0, 'TT4': float(t_tt4),
+            'T4U_measured': 1.0 if t_t4u_meas == "Yes" else 0.0, 'T4U': float(t_t4u),
+            'FTI_measured': 1.0 if t_fti_meas == "Yes" else 0.0, 'FTI': float(t_fti),
+            'TBG_measured': 1.0 if t_tbg_meas == "Yes" else 0.0, 'TBG': float(t_tbg)
+        }
+        prob = predict_with_model(model, data); lp.empty()
+        
+        if prob is not None:
+            st.info(f"**Patient:** {pat_info['Patient Name']} · Age {t_age} · TSH {t_tsh}")
+            pct = prob * 100
+            ui.result_card_with_animation(prob > 0.5,
+                "High Risk of Thyroid Disease" if prob > 0.5 else "Low Risk of Thyroid Disease", pct,
+                "High probability of thyroid disease. Endocrinology consultation recommended." if prob > 0.5 else "Low probability of thyroid disease. Routine follow-up sufficient.")
+            hist.save_prediction("Thyroid", prob, "High Risk" if prob > 0.5 else "Low Risk",
+                f"Patient: {pat_info['Patient Name']}, TSH: {t_tsh}, T3: {t_t3}", user_email=user_email)
+            report_data = dict(pat_info)
+            report_data.update({"Age": t_age, "Gender": t_sex, "TSH": t_tsh, "T3": t_t3, "TT4": t_tt4, "T4U": t_t4u, "FTI": t_fti, "TBG": t_tbg})
+            pdf_bytes = generate_medical_report("Thyroid Disease", report_data,
+                {"probability": prob, "is_high_risk": prob > 0.5, "summary": f"Patient has {pct:.1f}% probability of thyroid disease."})
+            st.download_button("📄  Download PDF Report", data=pdf_bytes,
+                file_name=f"MediFederate_Thyroid_{pat_info['Patient Name'].replace(' ','_')}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                mime="application/pdf", width='stretch', key="t_download_btn")
+        else: st.error("⚠️ Thyroid model not loaded.")
+
+
+# ========================================
+# TAB 7: LIVE PREDICTION
+# ========================================
+with tab7:
+    st.markdown('<div class="section-header">🩺 Live Patient Prediction</div>', unsafe_allow_html=True)
+    st.markdown("Enter patient details below and get **real-time AI predictions** with downloadable report.")
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    disease_choice = st.selectbox("🏥 Select Disease",
+        ["🩸 Diabetes", "❤️ Heart Disease", "🧠 Stroke", "🫘 Kidney Disease", "🧬 Thyroid"], key="api_disease_select")
+    st.markdown("---")
+    st.markdown("### 📝 Enter Patient Details")
+    
+    if disease_choice == "🩸 Diabetes":
+        with st.form("api_diabetes_form"):
+            pat_info = render_patient_info("api_d")
+            col1, col2 = st.columns(2)
+            with col1:
+                api_d_age = st.number_input("Age (Clinical)", min_value=5, max_value=95, value=55, step=1, key="api_d_age")
+                api_d_time = st.number_input("Time in Hospital (days)", min_value=1, max_value=14, value=5, step=1, key="api_d_time")
+                api_d_meds = st.number_input("Number of Medications", min_value=1, max_value=81, value=15, step=1, key="api_d_meds")
+                api_d_lab = st.number_input("Lab Procedures", min_value=1, max_value=132, value=45, step=1, key="api_d_lab")
+            with col2:
+                api_d_diag = st.number_input("Number of Diagnoses", min_value=1, max_value=16, value=7, step=1, key="api_d_diag")
+                api_d_proc = st.number_input("Procedures", min_value=0, max_value=6, value=2, step=1, key="api_d_proc")
+                api_d_inpat = st.number_input("Previous Inpatient Visits", min_value=0, max_value=21, value=0, step=1, key="api_d_inpat")
+                api_d_emerg = st.number_input("Previous Emergency Visits", min_value=0, max_value=76, value=0, step=1, key="api_d_emerg")
+            st.markdown("<br>", unsafe_allow_html=True)
+            submitted = st.form_submit_button("🚀 Get Prediction", type="primary", width='stretch')
+        payload = {"age": api_d_age, "time_in_hospital": api_d_time, "num_medications": api_d_meds, "num_lab_procedures": api_d_lab, "number_diagnoses": api_d_diag, "num_procedures": api_d_proc, "number_inpatient": api_d_inpat, "number_emergency": api_d_emerg}
+        endpoint = "diabetes"; disease_clean = "Diabetes"
+        clinical_dict = {"Age": api_d_age, "Time in Hospital (days)": api_d_time, "Number of Medications": api_d_meds, "Lab Procedures": api_d_lab, "Number of Diagnoses": api_d_diag, "Procedures": api_d_proc, "Previous Inpatient Visits": api_d_inpat, "Previous Emergency Visits": api_d_emerg}
+
+    elif disease_choice == "❤️ Heart Disease":
+        with st.form("api_heart_form"):
+            pat_info = render_patient_info("api_h")
+            col1, col2 = st.columns(2)
+            with col1:
+                api_h_age = st.number_input("Age (Clinical)", min_value=20, max_value=90, value=55, step=1, key="api_h_age")
+                api_h_sex = st.selectbox("Gender", ["Male", "Female"], key="api_h_sex")
+                api_h_cp = st.selectbox("Chest Pain Type", [0, 1, 2, 3], format_func=lambda x: {0:"0 - Typical Angina",1:"1 - Atypical Angina",2:"2 - Non-anginal Pain",3:"3 - Asymptomatic"}[x], key="api_h_cp")
+                api_h_bp = st.number_input("Resting BP (mm Hg)", min_value=90, max_value=200, value=130, step=1, key="api_h_bp")
+                api_h_chol = st.number_input("Cholesterol (mg/dl)", min_value=100, max_value=600, value=240, step=1, key="api_h_chol")
+                api_h_fbs = st.selectbox("Fasting Blood Sugar > 120", ["No", "Yes"], key="api_h_fbs")
+            with col2:
+                api_h_ecg = st.selectbox("Resting ECG", [0, 1, 2], format_func=lambda x: {0:"0 - Normal",1:"1 - ST-T Abnormality",2:"2 - LV Hypertrophy"}[x], key="api_h_ecg")
+                api_h_hr = st.number_input("Max Heart Rate", min_value=70, max_value=210, value=150, step=1, key="api_h_hr")
+                api_h_exang = st.selectbox("Exercise Induced Angina", ["No", "Yes"], key="api_h_exang")
+                api_h_old = st.number_input("ST Depression", min_value=0.0, max_value=7.0, value=1.0, step=0.1, key="api_h_old")
+                api_h_slope = st.selectbox("Slope", [0, 1, 2], key="api_h_slope")
+                api_h_ca = st.number_input("Major Vessels (0-3)", min_value=0, max_value=3, value=0, step=1, key="api_h_ca")
+                api_h_thal = st.selectbox("Thalassemia", [1, 2, 3], key="api_h_thal")
+            st.markdown("<br>", unsafe_allow_html=True)
+            submitted = st.form_submit_button("🚀 Get Prediction", type="primary", width='stretch')
+        payload = {"age": api_h_age, "sex": 1 if api_h_sex == "Male" else 0, "cp": api_h_cp, "trestbps": api_h_bp, "chol": api_h_chol, "fbs": 1 if api_h_fbs == "Yes" else 0, "restecg": api_h_ecg, "thalach": api_h_hr, "exang": 1 if api_h_exang == "Yes" else 0, "oldpeak": api_h_old, "slope": api_h_slope, "ca": api_h_ca, "thal": api_h_thal}
+        endpoint = "heart"; disease_clean = "Heart Disease"
+        clinical_dict = {"Age": api_h_age, "Gender": api_h_sex, "Chest Pain Type": api_h_cp, "Resting BP (mm Hg)": api_h_bp, "Cholesterol (mg/dl)": api_h_chol, "Fasting Blood Sugar > 120": api_h_fbs, "Resting ECG": api_h_ecg, "Max Heart Rate": api_h_hr, "Exercise Induced Angina": api_h_exang, "ST Depression": api_h_old, "Slope": api_h_slope, "Major Vessels": api_h_ca, "Thalassemia": api_h_thal}
+
+    elif disease_choice == "🧠 Stroke":
+        with st.form("api_stroke_form"):
+            pat_info = render_patient_info("api_s")
+            col1, col2 = st.columns(2)
+            with col1:
+                api_s_age = st.number_input("Age (Clinical)", min_value=1, max_value=90, value=55, step=1, key="api_s_age")
+                api_s_gender = st.selectbox("Gender", ["Male", "Female"], key="api_s_gender")
+                api_s_hyp = st.selectbox("Hypertension", ["No", "Yes"], key="api_s_hyp")
+                api_s_heart = st.selectbox("Heart Disease", ["No", "Yes"], key="api_s_heart")
+                api_s_mar = st.selectbox("Ever Married", ["No", "Yes"], key="api_s_mar")
+            with col2:
+                api_s_gluc = st.number_input("Average Glucose Level", min_value=50.0, max_value=300.0, value=100.0, step=0.1, key="api_s_gluc")
+                api_s_bmi = st.number_input("BMI", min_value=10.0, max_value=60.0, value=25.0, step=0.1, key="api_s_bmi")
+                api_s_work = st.selectbox("Work Type", ["Private", "Self-employed", "Govt_job", "children", "Never_worked"], key="api_s_work")
+                api_s_res = st.selectbox("Residence", ["Urban", "Rural"], key="api_s_res")
+                api_s_smoke = st.selectbox("Smoking Status", ["never smoked", "formerly smoked", "smokes", "Unknown"], key="api_s_smoke")
+            st.markdown("<br>", unsafe_allow_html=True)
+            submitted = st.form_submit_button("🚀 Get Prediction", type="primary", width='stretch')
+        payload = {"gender": 1 if api_s_gender == "Male" else 0, "age": api_s_age, "hypertension": 1 if api_s_hyp == "Yes" else 0, "heart_disease": 1 if api_s_heart == "Yes" else 0, "ever_married": 1 if api_s_mar == "Yes" else 0, "Residence_type": 1 if api_s_res == "Urban" else 0, "avg_glucose_level": api_s_gluc, "bmi": api_s_bmi, "smoking_status": {"never smoked": 0, "formerly smoked": 1, "smokes": 2, "Unknown": 3}[api_s_smoke], "work_type_Never_worked": 1 if api_s_work == "Never_worked" else 0, "work_type_Private": 1 if api_s_work == "Private" else 0, "work_type_Self-employed": 1 if api_s_work == "Self-employed" else 0, "work_type_children": 1 if api_s_work == "children" else 0}
+        endpoint = "stroke"; disease_clean = "Stroke"
+        clinical_dict = {"Age": api_s_age, "Gender": api_s_gender, "Hypertension": api_s_hyp, "Heart Disease": api_s_heart, "Ever Married": api_s_mar, "Average Glucose Level": api_s_gluc, "BMI": api_s_bmi, "Work Type": api_s_work, "Residence": api_s_res, "Smoking Status": api_s_smoke}
+
+    elif disease_choice == "🫘 Kidney Disease":
+        with st.form("api_kidney_form"):
+            pat_info = render_patient_info("api_k")
+            col1, col2 = st.columns(2)
+            with col1:
+                api_k_age = st.number_input("Age (Clinical)", min_value=1, max_value=100, value=50, step=1, key="api_k_age")
+                api_k_bp = st.number_input("Blood Pressure", min_value=50, max_value=180, value=80, step=1, key="api_k_bp")
+                api_k_sg = st.number_input("Specific Gravity", min_value=1.005, max_value=1.025, value=1.020, step=0.005, format="%.3f", key="api_k_sg")
+                api_k_al = st.number_input("Albumin (0-5)", min_value=0, max_value=5, value=1, step=1, key="api_k_al")
+                api_k_su = st.number_input("Sugar (0-5)", min_value=0, max_value=5, value=0, step=1, key="api_k_su")
+                api_k_bgr = st.number_input("Blood Glucose Random", min_value=50, max_value=500, value=120, step=1, key="api_k_bgr")
+                api_k_bu = st.number_input("Blood Urea", min_value=10, max_value=400, value=40, step=1, key="api_k_bu")
+                api_k_sc = st.number_input("Serum Creatinine", min_value=0.5, max_value=20.0, value=1.2, step=0.1, key="api_k_sc")
+                api_k_sod = st.number_input("Sodium", min_value=100, max_value=170, value=140, step=1, key="api_k_sod")
+                api_k_pot = st.number_input("Potassium", min_value=2.0, max_value=50.0, value=4.5, step=0.1, key="api_k_pot")
+            with col2:
+                api_k_hemo = st.number_input("Hemoglobin", min_value=3.0, max_value=20.0, value=14.0, step=0.1, key="api_k_hemo")
+                api_k_pcv = st.number_input("Packed Cell Volume", min_value=10, max_value=60, value=40, step=1, key="api_k_pcv")
+                api_k_wc = st.number_input("White Blood Cell Count", min_value=2000, max_value=25000, value=8000, step=100, key="api_k_wc")
+                api_k_rc = st.number_input("Red Blood Cell Count", min_value=2.0, max_value=8.0, value=5.0, step=0.1, key="api_k_rc")
+                api_k_htn = st.selectbox("Hypertension", ["No", "Yes"], key="api_k_htn")
+                api_k_dm = st.selectbox("Diabetes Mellitus", ["No", "Yes"], key="api_k_dm")
+                api_k_cad = st.selectbox("Coronary Artery Disease", ["No", "Yes"], key="api_k_cad")
+                api_k_appet = st.selectbox("Appetite", ["Good", "Poor"], key="api_k_appet")
+                api_k_pe = st.selectbox("Pedal Edema", ["No", "Yes"], key="api_k_pe")
+                api_k_ane = st.selectbox("Anemia", ["No", "Yes"], key="api_k_ane")
+            st.markdown("<br>", unsafe_allow_html=True)
+            submitted = st.form_submit_button("🚀 Get Prediction", type="primary", width='stretch')
+        payload = {"age": api_k_age, "bp": api_k_bp, "sg": api_k_sg, "al": api_k_al, "su": api_k_su, "bgr": api_k_bgr, "bu": api_k_bu, "sc": api_k_sc, "sod": api_k_sod, "pot": api_k_pot, "hemo": api_k_hemo, "pcv": api_k_pcv, "wc": api_k_wc, "rc": api_k_rc, "htn": 1 if api_k_htn == "Yes" else 0, "dm": 1 if api_k_dm == "Yes" else 0, "cad": 1 if api_k_cad == "Yes" else 0, "appet": 1 if api_k_appet == "Good" else 0, "pe": 1 if api_k_pe == "Yes" else 0, "ane": 1 if api_k_ane == "Yes" else 0, "rbc": 1, "pc": 1, "pcc": 0, "ba": 0}
+        endpoint = "kidney"; disease_clean = "Kidney Disease"
+        clinical_dict = {"Age": api_k_age, "Blood Pressure": api_k_bp, "Specific Gravity": api_k_sg, "Albumin": api_k_al, "Sugar": api_k_su, "Blood Glucose Random": api_k_bgr, "Blood Urea": api_k_bu, "Serum Creatinine": api_k_sc, "Sodium": api_k_sod, "Potassium": api_k_pot, "Hemoglobin": api_k_hemo, "Packed Cell Volume": api_k_pcv, "White Blood Cell Count": api_k_wc, "Red Blood Cell Count": api_k_rc, "Hypertension": api_k_htn, "Diabetes Mellitus": api_k_dm, "Coronary Artery Disease": api_k_cad, "Appetite": api_k_appet, "Pedal Edema": api_k_pe, "Anemia": api_k_ane}
+
+    else:
+        with st.form("api_thyroid_form"):
+            pat_info = render_patient_info("api_t")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                api_t_age = st.number_input("Age (Clinical)", min_value=1, max_value=100, value=45, step=1, key="api_t_age")
+                api_t_sex = st.selectbox("Gender", ["Female", "Male"], key="api_t_sex")
+                api_t_tsh = st.number_input("TSH Level", min_value=0.0, max_value=50.0, value=2.0, step=0.1, key="api_t_tsh")
+                api_t_t3 = st.number_input("T3 Level", min_value=0.0, max_value=10.0, value=1.5, step=0.1, key="api_t_t3")
+                api_t_tt4 = st.number_input("TT4 Level", min_value=0.0, max_value=30.0, value=8.0, step=0.1, key="api_t_tt4")
+                api_t_t4u = st.number_input("T4U Level", min_value=0.0, max_value=3.0, value=1.0, step=0.1, key="api_t_t4u")
+                api_t_fti = st.number_input("FTI Level", min_value=0.0, max_value=30.0, value=8.0, step=0.1, key="api_t_fti")
+                api_t_tbg = st.number_input("TBG Level", min_value=0.0, max_value=100.0, value=0.0, step=0.1, key="api_t_tbg")
+                api_t_on_thy = st.selectbox("On Thyroxine", ["No", "Yes"], key="api_t_on_thy")
+            with col2:
+                api_t_query_thy = st.selectbox("Query on Thyroxine", ["No", "Yes"], key="api_t_query_thy")
+                api_t_anti_thy = st.selectbox("On Antithyroid Meds", ["No", "Yes"], key="api_t_anti_thy")
+                api_t_sick = st.selectbox("Sick", ["No", "Yes"], key="api_t_sick")
+                api_t_pregnant = st.selectbox("Pregnant", ["No", "Yes"], key="api_t_pregnant")
+                api_t_surgery = st.selectbox("Thyroid Surgery", ["No", "Yes"], key="api_t_surgery")
+                api_t_i131 = st.selectbox("I131 Treatment", ["No", "Yes"], key="api_t_i131")
+                api_t_query_hypo = st.selectbox("Query Hypothyroid", ["No", "Yes"], key="api_t_query_hypo")
+                api_t_query_hyper = st.selectbox("Query Hyperthyroid", ["No", "Yes"], key="api_t_query_hyper")
+            with col3:
+                api_t_lithium = st.selectbox("Lithium", ["No", "Yes"], key="api_t_lithium")
+                api_t_goitre = st.selectbox("Goitre", ["No", "Yes"], key="api_t_goitre")
+                api_t_tumor = st.selectbox("Tumor", ["No", "Yes"], key="api_t_tumor")
+                api_t_hypopit = st.selectbox("Hypopituitary", ["No", "Yes"], key="api_t_hypopit")
+                api_t_psych = st.selectbox("Psych", ["No", "Yes"], key="api_t_psych")
+                api_t_tsh_meas = st.selectbox("TSH Measured", ["No", "Yes"], key="api_t_tsh_meas")
+                api_t_t3_meas = st.selectbox("T3 Measured", ["No", "Yes"], key="api_t_t3_meas")
+                api_t_tt4_meas = st.selectbox("TT4 Measured", ["No", "Yes"], key="api_t_tt4_meas")
+                api_t_tbg_meas = st.selectbox("TBG Measured", ["No", "Yes"], key="api_t_tbg_meas")
+            st.markdown("<br>", unsafe_allow_html=True)
+            submitted = st.form_submit_button("🚀 Get Prediction", type="primary", width='stretch')
+        payload = {"age": api_t_age, "sex": 1 if api_t_sex == "Male" else 0, "TSH": api_t_tsh, "T3": api_t_t3, "TT4": api_t_tt4, "T4U": api_t_t4u, "FTI": api_t_fti, "TBG": api_t_tbg, "on_thyroxine": 1 if api_t_on_thy == "Yes" else 0, "query_on_thyroxine": 1 if api_t_query_thy == "Yes" else 0, "on_antithyroid_meds": 1 if api_t_anti_thy == "Yes" else 0, "sick": 1 if api_t_sick == "Yes" else 0, "pregnant": 1 if api_t_pregnant == "Yes" else 0, "thyroid_surgery": 1 if api_t_surgery == "Yes" else 0, "I131_treatment": 1 if api_t_i131 == "Yes" else 0, "query_hypothyroid": 1 if api_t_query_hypo == "Yes" else 0, "query_hyperthyroid": 1 if api_t_query_hyper == "Yes" else 0, "lithium": 1 if api_t_lithium == "Yes" else 0, "goitre": 1 if api_t_goitre == "Yes" else 0, "tumor": 1 if api_t_tumor == "Yes" else 0, "hypopituitary": 1 if api_t_hypopit == "Yes" else 0, "psych": 1 if api_t_psych == "Yes" else 0, "TSH_measured": 1 if api_t_tsh_meas == "Yes" else 0, "T3_measured": 1 if api_t_t3_meas == "Yes" else 0, "TT4_measured": 1 if api_t_tt4_meas == "Yes" else 0, "T4U_measured": 1, "FTI_measured": 1, "TBG_measured": 1 if api_t_tbg_meas == "Yes" else 0}
+        endpoint = "thyroid"; disease_clean = "Thyroid"
+        clinical_dict = {"Age": api_t_age, "Gender": api_t_sex, "TSH": api_t_tsh, "T3": api_t_t3, "TT4": api_t_tt4, "T4U": api_t_t4u, "FTI": api_t_fti, "TBG": api_t_tbg, "On Thyroxine": api_t_on_thy, "Query on Thyroxine": api_t_query_thy, "On Antithyroid Meds": api_t_anti_thy, "Sick": api_t_sick, "Pregnant": api_t_pregnant, "Thyroid Surgery": api_t_surgery, "I131 Treatment": api_t_i131, "Query Hypothyroid": api_t_query_hypo, "Query Hyperthyroid": api_t_query_hyper, "Lithium": api_t_lithium, "Goitre": api_t_goitre, "Tumor": api_t_tumor, "Hypopituitary": api_t_hypopit, "Psych": api_t_psych, "TSH Measured": api_t_tsh_meas, "T3 Measured": api_t_t3_meas, "TT4 Measured": api_t_tt4_meas}
+
+    if submitted:
+        with st.spinner(f"Generating prediction for {disease_clean}..."):
+            try:
+                import requests
+                api_url = f"http://127.0.0.1:8001/predict/{endpoint}"
+                response = requests.post(api_url, json=payload, timeout=60)
+                if response.status_code == 200:
+                    result = response.json()
+                    st.session_state['api_result'] = result
+                    st.session_state['api_disease_clean'] = disease_clean
+                    st.session_state['api_patient_details'] = dict(pat_info)
+                    st.session_state['api_clinical_details'] = clinical_dict
+                    hist.save_prediction(disease_clean, result.get('probability', 0) / 100, result.get('risk_level', 'Unknown'), f"Patient: {pat_info['Patient Name']}", user_email=user_email)
+                else:
+                    st.error(f"❌ API returned error: {response.status_code}"); st.session_state['api_result'] = None
+            except Exception as e:
+                st.error(f"❌ Connection error: {str(e)}")
+                st.info("💡 Server may be waking up. Please wait 30 seconds and try again.")
+                st.session_state['api_result'] = None
+    
+    if 'api_result' in st.session_state and st.session_state.get('api_result'):
+        result = st.session_state['api_result']
+        res_disease = st.session_state['api_disease_clean']
+        p_details = st.session_state['api_patient_details']
+        c_details = st.session_state['api_clinical_details']
+        prob = result.get('probability', 0); risk = result.get('risk_level', 'Unknown')
+        
+        st.markdown("---")
+        st.markdown("### 📊 Prediction Result")
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        if prob > 50: st.error("⚠️ **HIGH RISK DETECTED**")
+        else: st.success("✅ **LOW RISK**")
+        
+        col_r1, col_r2, col_r3 = st.columns(3)
+        with col_r1:
+            st.markdown(f'<div class="metric-card"><div class="metric-label">Patient</div><div class="metric-value" style="font-size: 1.2rem;">{p_details.get("Patient Name","N/A")}</div></div>', unsafe_allow_html=True)
+        with col_r2:
+            color = "#ef4444" if prob > 50 else "#10b981"
+            st.markdown(f'<div class="metric-card"><div class="metric-label">Risk Level</div><div class="metric-value" style="color: {color}; font-size: 1.4rem;">{risk}</div></div>', unsafe_allow_html=True)
+        with col_r3:
+            st.markdown(f'<div class="metric-card"><div class="metric-label">Probability</div><div class="metric-value" style="font-size: 1.4rem;">{prob}%</div></div>', unsafe_allow_html=True)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        if prob > 50: st.warning("📋 **Clinical Note:** Elevated risk. Further clinical evaluation recommended.")
+        else: st.info("📋 **Clinical Note:** Low risk. Standard follow-up sufficient.")
+        st.success(f"🔒 **Privacy:** {result.get('data_shared', '0 bytes')} shared · DP Enabled")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("### 🖨️ Print / Download Report")
+        col_p1, col_p2 = st.columns(2)
+        with col_p1:
+            all_details = dict(p_details); all_details.update(c_details)
+            pdf_bytes = generate_medical_report(res_disease, all_details,
+                {"probability": prob / 100, "is_high_risk": prob > 50, "summary": f"Patient has {prob:.1f}% probability of {res_disease}."})
+            st.download_button("📄  Download PDF Report", data=pdf_bytes,
+                file_name=f"MediFederate_{res_disease.replace(' ', '_')}_{p_details.get('Patient Name','Patient').replace(' ','_')}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                mime="application/pdf", width='stretch', key="api_result_pdf")
+        with col_p2:
+            report_text = f"MEDIFEDERATE MEDICAL REPORT\nDate: {datetime.now().strftime('%Y-%m-%d %H:%M')}\nDisease: {res_disease}\n\n"
+            report_text += "=== PATIENT INFO ===\n"
+            for k, v in p_details.items(): report_text += f"  {k}: {v}\n"
+            report_text += "\n=== CLINICAL DATA ===\n"
+            for k, v in c_details.items(): report_text += f"  {k}: {v}\n"
+            report_text += f"\n=== RESULT ===\nProbability: {prob}%\nRisk Level: {risk}\n"
+            st.download_button("📝  Download Text Report", data=report_text,
+                file_name=f"MediFederate_{res_disease.replace(' ','_')}_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+                mime="text/plain", width='stretch', key="api_result_txt")
+        st.caption("✅ Prediction saved to history.")
+
+
+# ========================================
+# TAB 8: EXPLAINABLE AI (SHAP)
+# ========================================
+with tab8:
+    st.markdown('<div class="section-header">🔍 Explainable AI (SHAP Analysis)</div>', unsafe_allow_html=True)
+    
+    st.markdown("""
+    **SHAP** (SHapley Additive exPlanations) shows exactly how the AI made its decision. 
+    For every prediction, SHAP identifies **which features contributed most** to the outcome. 
+    This builds **trust** in medical AI.
+    """)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown('<div class="metric-card"><div class="metric-label">Purpose</div><div class="metric-value" style="font-size: 1.3rem;">Trust</div><p style="color: #A8A8C0; font-size: 0.85rem; margin-top: 8px;">For doctors to understand</p></div>', unsafe_allow_html=True)
+    with col2:
+        st.markdown('<div class="metric-card"><div class="metric-label">Method</div><div class="metric-value" style="font-size: 1.3rem;">Feature Importance</div><p style="color: #A8A8C0; font-size: 0.85rem; margin-top: 8px;">Weight per feature</p></div>', unsafe_allow_html=True)
+    with col3:
+        st.markdown('<div class="metric-card"><div class="metric-label">Coverage</div><div class="metric-value" style="font-size: 1.3rem;">4 Diseases</div><p style="color: #A8A8C0; font-size: 0.85rem; margin-top: 8px;">Diabetes, Heart, Stroke, Kidney</p></div>', unsafe_allow_html=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("---")
+    
+    st.markdown("### 🏥 Select Disease to View SHAP Analysis")
+    shap_disease = st.selectbox(
+        "Disease:",
+        ["🩸 Diabetes", "❤️ Heart Disease", "🧠 Stroke", "🫘 Kidney Disease"],
+        key="shap_disease_select"
+    )
+    
+    st.markdown("---")
+    
+    shap_files = {
+        "🩸 Diabetes": {
+            "plot": "shap_diabetes.png",
+            "csv": "shap_diabetes_importance.csv",
+            "accuracy": "61.44%",
+            "patients": "100,244"
+        },
+        "❤️ Heart Disease": {
+            "plot": "shap_heart_disease.png",
+            "csv": "shap_heart_disease_importance.csv",
+            "accuracy": "88.52%",
+            "patients": "303"
+        },
+        "🧠 Stroke": {
+            "plot": "shap_stroke.png",
+            "csv": "shap_stroke_importance.csv",
+            "accuracy": "72.90%",
+            "patients": "5,109"
+        },
+        "🫘 Kidney Disease": {
+            "plot": "shap_kidney_disease.png",
+            "csv": "shap_kidney_disease_importance.csv",
+            "accuracy": "100%",
+            "patients": "400"
+        }
+    }
+    
+    info = shap_files[shap_disease]
+    
+    col_i1, col_i2, col_i3 = st.columns(3)
+    with col_i1:
+        st.metric("Disease", shap_disease)
+    with col_i2:
+        st.metric("Model Accuracy", info["accuracy"])
+    with col_i3:
+        st.metric("Training Data", f"{info['patients']} patients")
+    
+    st.markdown("---")
+    
+    col_plot, col_feat = st.columns([1.2, 1])
+    
+    with col_plot:
+        st.markdown("#### 📊 SHAP Summary Plot")
+        st.markdown("*Red = high impact, Blue = low impact.*")
+        
+        if os.path.exists(info["plot"]):
+            st.image(info["plot"], width='stretch')
+        else:
+            st.warning(f"⚠️ SHAP plot not found: `{info['plot']}`")
+    
+    with col_feat:
+        st.markdown("#### 🎯 Top Feature Importance")
+        
+        if os.path.exists(info["csv"]):
+            try:
+                df_shap = pd.read_csv(info["csv"])
+                
+                if 'feature' in df_shap.columns and 'importance' in df_shap.columns:
+                    df_shap = df_shap.sort_values('importance', ascending=False).head(10)
+                elif df_shap.shape[1] >= 2:
+                    df_shap.columns = ['feature', 'importance']
+                    df_shap = df_shap.sort_values('importance', ascending=False).head(10)
+                
+                for idx, row in df_shap.iterrows():
+                    feature_name = str(row['feature']).replace('_', ' ').title()
+                    importance = float(row['importance'])
+                    max_imp = float(df_shap['importance'].max())
+                    bar_width = (importance / max_imp) * 100 if max_imp > 0 else 0
+                    
+                    st.markdown(f"""
+                    <div style="margin-bottom: 14px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                            <span style="color: #D0D0E8; font-weight: 600; font-size: 0.9rem;">{feature_name}</span>
+                            <span style="color: #8B7FFF; font-weight: 700; font-size: 0.85rem;">{importance:.4f}</span>
+                        </div>
+                        <div style="background: rgba(108, 99, 255, 0.1); border-radius: 8px; height: 8px; overflow: hidden;">
+                            <div style="height: 100%; width: {bar_width}%; background: linear-gradient(90deg, #6C63FF, #FF6584); border-radius: 8px;"></div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            except Exception as e:
+                st.error(f"Error reading CSV: {e}")
+        else:
+            st.warning(f"⚠️ Feature importance file not found: `{info['csv']}`")
+    
+    st.markdown("---")
+    
+    st.markdown("#### 📖 What Does This Mean?")
+    
+    st.markdown("""
+    <div class="feature-card fade-in">
+        <div class="feature-title">🔴 High Impact (Red)</div>
+        <div class="feature-desc">This feature contributes more to the prediction. If it changes, the prediction may change significantly.</div>
+    </div>
+    <div class="feature-card fade-in">
+        <div class="feature-title">🔵 Low Impact (Blue)</div>
+        <div class="feature-desc">This feature contributes less to the prediction. It has minimal effect on the outcome.</div>
+    </div>
+    <div class="feature-card fade-in">
+        <div class="feature-title">🎯 Feature Importance Bars</div>
+        <div class="feature-desc">The bars above show how important each feature is. Top bar = most important feature.</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    st.info("💡 **For Doctors:** When viewing any patient's prediction, this SHAP analysis helps you understand which features the AI weighted most. This supports your clinical decision-making.")
+    
+    st.success("✅ **Explainable AI** — A critical feature for building trust in medical AI!")
+
+
+# ========================================
+# TAB: DOCTOR ANALYTICS (Doctor Only)
+# ========================================
+if tab_analytics is not None:
+    with tab_analytics:
+        st.markdown('<div class="section-header">📊 Doctor Analytics Dashboard</div>', unsafe_allow_html=True)
+        
+        st.markdown("""
+        A complete overview of **your prediction activity**. Track your performance, 
+        see disease patterns, and monitor your clinical insights.
+        """)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        df_all = hist.get_all_predictions(disease_filter="All", user_email=user_email)
+        
+        if df_all.empty:
+            st.info("📭 **No predictions yet.** Go to any disease tab and make your first prediction to see analytics here!")
+        else:
+            df_all['timestamp'] = pd.to_datetime(df_all['timestamp'])
+            df_all['date'] = df_all['timestamp'].dt.date
+            
+            total = len(df_all)
+            high_risk = len(df_all[df_all['risk_level'].str.contains('High', na=False, case=False)])
+            low_risk = total - high_risk
+            avg_prob = df_all['probability'].mean() * 100
+            active_days = df_all['date'].nunique()
+            high_pct = (high_risk / total) * 100 if total > 0 else 0
+            
+            st.markdown("### 📈 Your Statistics")
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.markdown(f'<div class="metric-card"><div class="metric-label">Total Predictions</div><div class="metric-value" style="font-size: 2rem;">{total}</div><p style="color: #A8A8C0; font-size: 0.85rem; margin-top: 6px;">All diseases</p></div>', unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown(f'<div class="metric-card"><div class="metric-label">High Risk Detected</div><div class="metric-value" style="font-size: 2rem; color: #FF4757;">{high_risk}</div><p style="color: #A8A8C0; font-size: 0.85rem; margin-top: 6px;">{high_pct:.1f}% of total</p></div>', unsafe_allow_html=True)
+            
+            with col3:
+                st.markdown(f'<div class="metric-card"><div class="metric-label">Avg Probability</div><div class="metric-value" style="font-size: 2rem;">{avg_prob:.1f}%</div><p style="color: #A8A8C0; font-size: 0.85rem; margin-top: 6px;">Across all cases</p></div>', unsafe_allow_html=True)
+            
+            with col4:
+                st.markdown(f'<div class="metric-card"><div class="metric-label">Active Days</div><div class="metric-value" style="font-size: 2rem;">{active_days}</div><p style="color: #A8A8C0; font-size: 0.85rem; margin-top: 6px;">Days with predictions</p></div>', unsafe_allow_html=True)
+            
+            st.markdown("<br><br>", unsafe_allow_html=True)
+            st.markdown("---")
+            
+            st.markdown("### 📊 Disease & Risk Distribution")
+            col_chart1, col_chart2 = st.columns(2)
+            
+            with col_chart1:
+                st.markdown("#### 🎯 Disease Distribution")
+                st.caption("Which diseases are you predicting most?")
+                
+                try:
+                    import plotly.graph_objects as go
+                    
+                    disease_counts = df_all['disease'].value_counts()
+                    
+                    fig_donut = go.Figure(data=[go.Pie(
+                        labels=disease_counts.index.tolist(),
+                        values=disease_counts.values.tolist(),
+                        hole=0.6,
+                        marker=dict(
+                            colors=['#6C63FF', '#FF6584', '#00D9A3', '#FFB800', '#3B82F6'],
+                            line=dict(color='#0A0A1A', width=3)
+                        ),
+                        textinfo='label+percent',
+                        textfont=dict(size=12, color='white', family='Poppins'),
+                        hovertemplate='<b>%{label}</b><br>Count: %{value}<br>%{percent}<extra></extra>'
+                    )])
+                    
+                    fig_donut.update_layout(
+                        showlegend=False,
+                        height=380,
+                        margin=dict(l=20, r=20, t=20, b=20),
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        font=dict(color='white', family='Poppins'),
+                        annotations=[dict(
+                            text=f'<b>{total}</b><br><span style="font-size:11px;color:#A8A8C0;">Total</span>',
+                            x=0.5, y=0.5, font_size=22, showarrow=False, font_color='#FFFFFF'
+                        )]
+                    )
+                    
+                    st.plotly_chart(fig_donut, width='stretch', config={'displayModeBar': False}, key="analytics_donut")
+                except Exception as e:
+                    st.error(f"Chart error: {e}")
+            
+            with col_chart2:
+                st.markdown("#### 🎨 Risk Level Breakdown")
+                st.caption("High vs Low risk per disease")
+                
+                try:
+                    import plotly.graph_objects as go
+                    
+                    risk_by_disease = df_all.groupby(['disease', 'risk_level']).size().unstack(fill_value=0)
+                    
+                    for col_name in ['High Risk', 'Low Risk']:
+                        if col_name not in risk_by_disease.columns:
+                            risk_by_disease[col_name] = 0
+                    
+                    diseases = risk_by_disease.index.tolist()
+                    high_vals = risk_by_disease['High Risk'].tolist() if 'High Risk' in risk_by_disease.columns else [0]*len(diseases)
+                    low_vals = risk_by_disease['Low Risk'].tolist() if 'Low Risk' in risk_by_disease.columns else [0]*len(diseases)
+                    
+                    fig_bar = go.Figure()
+                    fig_bar.add_trace(go.Bar(name='High Risk', x=diseases, y=high_vals, marker_color='#FF4757', hovertemplate='<b>%{x}</b><br>High Risk: %{y}<extra></extra>'))
+                    fig_bar.add_trace(go.Bar(name='Low Risk', x=diseases, y=low_vals, marker_color='#00D9A3', hovertemplate='<b>%{x}</b><br>Low Risk: %{y}<extra></extra>'))
+                    
+                    fig_bar.update_layout(
+                        barmode='stack',
+                        height=380,
+                        margin=dict(l=20, r=20, t=20, b=20),
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        font=dict(color='white', family='Poppins'),
+                        xaxis=dict(gridcolor='rgba(108, 99, 255, 0.1)'),
+                        yaxis=dict(gridcolor='rgba(108, 99, 255, 0.1)'),
+                        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
+                    )
+                    
+                    st.plotly_chart(fig_bar, width='stretch', config={'displayModeBar': False}, key="analytics_bar")
+                except Exception as e:
+                    st.error(f"Chart error: {e}")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("---")
+            
+            st.markdown("### 📈 Predictions Over Time")
+            st.caption("Your daily prediction activity")
+            
+            try:
+                import plotly.graph_objects as go
+                
+                daily_counts = df_all.groupby('date').size().reset_index(name='count')
+                
+                fig_line = go.Figure()
+                fig_line.add_trace(go.Scatter(
+                    x=daily_counts['date'],
+                    y=daily_counts['count'],
+                    mode='lines+markers',
+                    line=dict(color='#6C63FF', width=3),
+                    marker=dict(size=10, color='#8B7FFF', line=dict(color='#FF6584', width=2)),
+                    fill='tozeroy',
+                    fillcolor='rgba(108, 99, 255, 0.1)',
+                    hovertemplate='<b>%{x}</b><br>Predictions: %{y}<extra></extra>'
+                ))
+                
+                fig_line.update_layout(
+                    height=300,
+                    margin=dict(l=20, r=20, t=20, b=20),
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color='white', family='Poppins'),
+                    xaxis=dict(gridcolor='rgba(108, 99, 255, 0.1)'),
+                    yaxis=dict(gridcolor='rgba(108, 99, 255, 0.1)')
+                )
+                
+                st.plotly_chart(fig_line, width='stretch', config={'displayModeBar': False}, key="analytics_line")
+            except Exception as e:
+                st.error(f"Chart error: {e}")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("---")
+            
+            st.markdown("### 📋 Recent Predictions")
+            recent = df_all.head(10)[['timestamp', 'disease', 'probability', 'risk_level', 'patient_info']]
+            recent['probability'] = (recent['probability'] * 100).round(1).astype(str) + '%'
+            recent['timestamp'] = pd.to_datetime(recent['timestamp']).dt.strftime('%Y-%m-%d %H:%M')
+            st.dataframe(recent, width='stretch', hide_index=True)
+
+
+# ========================================
+# TAB: GALLERY
+# ========================================
+with tab_gallery:
+    st.markdown('<div class="section-header">🏥 Gallery</div>', unsafe_allow_html=True)
+    st.markdown("Visual insights into MediFederate's capabilities.")
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.info("📸 Gallery images will appear here once screenshots are added to the `screenshots/` folder.")
+
+
+# ========================================
+# TAB: CONTACTS
+# ========================================
+with tab_contacts:
+    st.markdown('<div class="section-header">📞 Contact Us</div>', unsafe_allow_html=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("""
+    <div class="contact-card">
+        <div class="contact-icon">📧</div>
+        <div class="contact-title">Email</div>
+        <div class="contact-info">support@medifederate.com</div>
+    </div>
+    <div class="contact-card">
+        <div class="contact-icon">📱</div>
+        <div class="contact-title">Phone</div>
+        <div class="contact-info">+92 300 1234567</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# ========================================
+# TAB: HISTORY (Doctor Only)
+# ========================================
+if tab_history is not None:
+    with tab_history:
+        st.markdown('<div class="section-header">📜 Prediction History</div>', unsafe_allow_html=True)
+        st.info("Prediction history is being loaded from the database.")
