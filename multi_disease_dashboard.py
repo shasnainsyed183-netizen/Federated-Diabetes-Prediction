@@ -89,11 +89,22 @@ if st.session_state.show_chat_page:
 @st.cache_resource(show_spinner=False)
 def load_diabetes_model():
     import tensorflow as tf
+    import pandas as pd
+    from sklearn.preprocessing import StandardScaler
     try:
-        return {'model': tf.keras.models.load_model('federated_dp_model.keras'),
-                'scaler': pickle.load(open('scaler.pkl', 'rb')),
-                'features': pickle.load(open('feature_names.pkl', 'rb'))}
-    except Exception:
+        # Naya DP Model load karein
+        model = tf.keras.models.load_model('federated_model.h5', compile=False)
+        
+        # Optimized data se features aur scaler banayein
+        df = pd.read_csv('data/optimized_data.csv')
+        features = df.drop('readmitted', axis=1).columns.tolist()
+        
+        scaler = StandardScaler()
+        scaler.fit(df.drop('readmitted', axis=1))
+        
+        return {'model': model, 'scaler': scaler, 'features': features}
+    except Exception as e:
+        print(f"Diabetes Model Load Error: {e}")
         return None
 
 
@@ -908,7 +919,7 @@ with tab1:
     st.markdown("<br>", unsafe_allow_html=True)
     
     col1, col2, col3, col4, col5 = st.columns(5)
-    with col1: ui.animated_metric_card("🩸", "Diabetes", "62.38%", "100,244 patients", "Beats Baseline", "success")
+    with col1: ui.animated_metric_card("🩸", "Diabetes", "61.44%", "100,244 patients", "Privacy Enabled", "success")
     with col2: ui.animated_metric_card("❤️", "Heart Disease", "88.52%", "303 patients", "⭐ Best", "warning")
     with col3: ui.animated_metric_card("🧠", "Stroke", "72.90%", "5,109 patients", "80% Recall", "info")
     with col4: ui.animated_metric_card("🫘", "Kidney", "100%", "400 patients", "🎯 Excellent", "success")
@@ -920,7 +931,7 @@ with tab1:
     with col_a:
         comparison = pd.DataFrame({
             "Disease": ["Diabetes", "Heart Disease", "Stroke", "Kidney Disease", "Thyroid"],
-            "Accuracy (%)": [62.38, 88.52, 72.90, 100.00, 90.36],
+            "Accuracy (%)": [61.44, 88.52, 72.90, 100.00, 90.36],
             "Data Shared": ["0 B"]*5, "Privacy": ["✅ DP"]*5})
         st.dataframe(comparison, width='stretch', hide_index=True)
     with col_b:
@@ -936,7 +947,7 @@ with tab1:
 with tab2:
     st.markdown('<div class="section-header">🩸 Diabetes Readmission Prediction</div>', unsafe_allow_html=True)
     col_info1, col_info2, col_info3 = st.columns(3)
-    with col_info1: st.metric("Accuracy", "62.38%", "+0.04% vs baseline")
+    with col_info1: st.metric("Accuracy", "61.44%", "Privacy Enabled")
     with col_info2: st.metric("Training Data", "100,244 patients")
     with col_info3: st.metric("Privacy", "✅ DP Enabled")
     st.markdown("---")
@@ -1430,7 +1441,7 @@ with tab7:
         with st.spinner(f"Generating prediction for {disease_clean}..."):
             try:
                 import requests
-                api_url = f"https://federated-diabetes-prediction-production.up.railway.app/predict/{endpoint}"
+                api_url = f"http://127.0.0.1:8001/predict/{endpoint}"
                 response = requests.post(api_url, json=payload, timeout=60)
                 if response.status_code == 200:
                     result = response.json()
@@ -1535,7 +1546,7 @@ with tab8:
         "🩸 Diabetes": {
             "plot": "shap_diabetes.png",
             "csv": "shap_diabetes_importance.csv",
-            "accuracy": "62.38%",
+            "accuracy": "61.44%",
             "patients": "100,244"
         },
         "❤️ Heart Disease": {
@@ -1747,24 +1758,20 @@ if tab_analytics is not None:
                     high_vals = risk_by_disease['High Risk'].tolist() if 'High Risk' in risk_by_disease.columns else [0]*len(diseases)
                     low_vals = risk_by_disease['Low Risk'].tolist() if 'Low Risk' in risk_by_disease.columns else [0]*len(diseases)
                     
-                    fig_bar = go.Figure(data=[
-                        go.Bar(name='High Risk', x=diseases, y=high_vals, marker_color='#FF4757',
-                               hovertemplate='<b>%{x}</b><br>High Risk: %{y}<extra></extra>'),
-                        go.Bar(name='Low Risk', x=diseases, y=low_vals, marker_color='#00D9A3',
-                               hovertemplate='<b>%{x}</b><br>Low Risk: %{y}<extra></extra>')
-                    ])
+                    fig_bar = go.Figure()
+                    fig_bar.add_trace(go.Bar(name='High Risk', x=diseases, y=high_vals, marker_color='#FF4757', hovertemplate='<b>%{x}</b><br>High Risk: %{y}<extra></extra>'))
+                    fig_bar.add_trace(go.Bar(name='Low Risk', x=diseases, y=low_vals, marker_color='#00D9A3', hovertemplate='<b>%{x}</b><br>Low Risk: %{y}<extra></extra>'))
                     
                     fig_bar.update_layout(
                         barmode='stack',
                         height=380,
-                        margin=dict(l=20, r=20, t=20, b=40),
+                        margin=dict(l=20, r=20, t=20, b=20),
                         paper_bgcolor='rgba(0,0,0,0)',
                         plot_bgcolor='rgba(0,0,0,0)',
-                        font=dict(color='white', family='Poppins', size=11),
-                        xaxis=dict(gridcolor='rgba(108,99,255,0.1)', showgrid=False),
-                        yaxis=dict(gridcolor='rgba(108,99,255,0.15)', title='Count'),
-                        legend=dict(orientation='h', y=-0.15, x=0.5, xanchor='center',
-                                    font=dict(color='white'))
+                        font=dict(color='white', family='Poppins'),
+                        xaxis=dict(gridcolor='rgba(108, 99, 255, 0.1)'),
+                        yaxis=dict(gridcolor='rgba(108, 99, 255, 0.1)'),
+                        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
                     )
                     
                     st.plotly_chart(fig_bar, width='stretch', config={'displayModeBar': False}, key="analytics_bar")
@@ -1774,142 +1781,80 @@ if tab_analytics is not None:
             st.markdown("<br>", unsafe_allow_html=True)
             st.markdown("---")
             
-            st.markdown("### 📅 Activity Trend")
-            col_trend, col_insight = st.columns([2, 1])
+            st.markdown("### 📈 Predictions Over Time")
+            st.caption("Your daily prediction activity")
             
-            with col_trend:
-                st.markdown("#### Predictions Over Time")
-                st.caption("Last 14 days of activity")
+            try:
+                import plotly.graph_objects as go
                 
-                try:
-                    import plotly.graph_objects as go
-                    
-                    daily_counts = df_all.groupby('date').size().reset_index(name='count')
-                    daily_counts = daily_counts.sort_values('date').tail(14)
-                    
-                    fig_line = go.Figure()
-                    
-                    fig_line.add_trace(go.Scatter(
-                        x=daily_counts['date'].astype(str),
-                        y=daily_counts['count'],
-                        mode='lines+markers',
-                        line=dict(color='#6C63FF', width=3, shape='spline'),
-                        marker=dict(size=10, color='#8B7FFF', line=dict(color='#FFFFFF', width=2)),
-                        fill='tozeroy',
-                        fillcolor='rgba(108, 99, 255, 0.15)',
-                        hovertemplate='<b>%{x}</b><br>Predictions: %{y}<extra></extra>'
-                    ))
-                    
-                    fig_line.update_layout(
-                        height=300,
-                        margin=dict(l=20, r=20, t=20, b=40),
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        plot_bgcolor='rgba(0,0,0,0)',
-                        font=dict(color='white', family='Poppins', size=11),
-                        xaxis=dict(gridcolor='rgba(108,99,255,0.1)', showgrid=False, title=''),
-                        yaxis=dict(gridcolor='rgba(108,99,255,0.15)', title='Count'),
-                        showlegend=False
-                    )
-                    
-                    st.plotly_chart(fig_line, width='stretch', config={'displayModeBar': False}, key="analytics_trend")
-                except Exception as e:
-                    st.error(f"Chart error: {e}")
-            
-            with col_insight:
-                st.markdown("#### 💡 Insights")
+                daily_counts = df_all.groupby('date').size().reset_index(name='count')
                 
-                most_common = df_all['disease'].value_counts().index[0] if len(df_all) > 0 else "N/A"
-                most_common_count = df_all['disease'].value_counts().iloc[0] if len(df_all) > 0 else 0
-                most_recent = df_all['timestamp'].max().strftime('%Y-%m-%d') if len(df_all) > 0 else "N/A"
+                fig_line = go.Figure()
+                fig_line.add_trace(go.Scatter(
+                    x=daily_counts['date'],
+                    y=daily_counts['count'],
+                    mode='lines+markers',
+                    line=dict(color='#6C63FF', width=3),
+                    marker=dict(size=10, color='#8B7FFF', line=dict(color='#FF6584', width=2)),
+                    fill='tozeroy',
+                    fillcolor='rgba(108, 99, 255, 0.1)',
+                    hovertemplate='<b>%{x}</b><br>Predictions: %{y}<extra></extra>'
+                ))
                 
-                st.markdown(f"""
-                <div class="feature-card fade-in" style="padding: 18px; margin-bottom: 12px;">
-                    <div class="feature-title" style="font-size: 0.95rem;">🏆 Most Predicted</div>
-                    <div class="feature-desc" style="font-size: 0.85rem;"><b style="color: #8B7FFF;">{most_common}</b><br>{most_common_count} cases</div>
-                </div>
+                fig_line.update_layout(
+                    height=300,
+                    margin=dict(l=20, r=20, t=20, b=20),
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color='white', family='Poppins'),
+                    xaxis=dict(gridcolor='rgba(108, 99, 255, 0.1)'),
+                    yaxis=dict(gridcolor='rgba(108, 99, 255, 0.1)')
+                )
                 
-                <div class="feature-card fade-in" style="padding: 18px; margin-bottom: 12px;">
-                    <div class="feature-title" style="font-size: 0.95rem;">🔴 High Risk Alert</div>
-                    <div class="feature-desc" style="font-size: 0.85rem;"><b style="color: #FF4757;">{high_risk}</b> high-risk cases detected</div>
-                </div>
-                
-                <div class="feature-card fade-in" style="padding: 18px;">
-                    <div class="feature-title" style="font-size: 0.95rem;">🕐 Last Prediction</div>
-                    <div class="feature-desc" style="font-size: 0.85rem;">{most_recent}</div>
-                </div>
-                """, unsafe_allow_html=True)
+                st.plotly_chart(fig_line, width='stretch', config={'displayModeBar': False}, key="analytics_line")
+            except Exception as e:
+                st.error(f"Chart error: {e}")
             
             st.markdown("<br>", unsafe_allow_html=True)
             st.markdown("---")
             
-            st.markdown("### 🕒 Recent Predictions")
-            
-            recent_df = df_all.sort_values('timestamp', ascending=False).head(10).copy()
-            recent_df['probability'] = (recent_df['probability'] * 100).round(1).astype(str) + '%'
-            recent_df['timestamp'] = recent_df['timestamp'].dt.strftime('%Y-%m-%d %H:%M')
-            
-            display_cols = ['timestamp', 'disease', 'probability', 'risk_level']
-            st.dataframe(
-                recent_df[display_cols].rename(columns={
-                    'timestamp': 'Time',
-                    'disease': 'Disease',
-                    'probability': 'Probability',
-                    'risk_level': 'Risk Level'
-                }),
-                width='stretch',
-                hide_index=True
-            )
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.success(f"✅ Analytics dashboard generated from **{total}** predictions!")
+            st.markdown("### 📋 Recent Predictions")
+            recent = df_all.head(10)[['timestamp', 'disease', 'probability', 'risk_level', 'patient_info']]
+            recent['probability'] = (recent['probability'] * 100).round(1).astype(str) + '%'
+            recent['timestamp'] = pd.to_datetime(recent['timestamp']).dt.strftime('%Y-%m-%d %H:%M')
+            st.dataframe(recent, width='stretch', hide_index=True)
 
 
 # ========================================
 # TAB: GALLERY
 # ========================================
 with tab_gallery:
-    st.markdown('<div class="section-header">🏥 Medical Knowledge Gallery</div>', unsafe_allow_html=True)
-    gallery_items = [
-        {"category": "CARDIOLOGY", "title": "Blood Pressure Monitoring", "desc": "High BP is a silent killer.", "image": "https://images.unsplash.com/photo-1579154204601-01588f351e67?w=800", "emoji": "💓", "query": "My blood pressure is high, what should I do?"},
-        {"category": "CARDIOLOGY", "title": "Heart Health", "desc": "Cardiovascular disease is the #1 cause of death globally.", "image": "https://images.unsplash.com/photo-1628348070889-cb656235b4eb?w=800", "emoji": "❤️", "query": "I have chest pain, what should I do?"},
-        {"category": "ENDOCRINOLOGY", "title": "Diabetes & Blood Sugar", "desc": "Monitor sugar regularly.", "image": "https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=800", "emoji": "🩸", "query": "My sugar level is 200, what should I do?"},
-        {"category": "NEPHROLOGY", "title": "Kidney Health", "desc": "Stay hydrated and control BP.", "image": "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800", "emoji": "🫘", "query": "How can I keep my kidneys healthy?"},
-        {"category": "NEUROLOGY", "title": "Stroke Awareness", "desc": "Remember FAST: Face, Arm, Speech, Time.", "image": "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=800", "emoji": "🧠", "query": "Tell me about stroke symptoms"},
-        {"category": "ENDOCRINOLOGY", "title": "Thyroid Health", "desc": "Get TSH, T3, T4 checked if symptomatic.", "image": "https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=800", "emoji": "🧬", "query": "What are the symptoms of thyroid problems?"},
-        {"category": "GENERAL HEALTH", "title": "Fever & Infections", "desc": "Fever is the body's defense against infection.", "image": "https://images.unsplash.com/photo-1584362917165-526a968579e8?w=800", "emoji": "🌡️", "query": "I have fever, what should I do?"},
-        {"category": "EMERGENCY", "title": "Emergency Response", "desc": "Save these numbers: 1122, 115, 15, 1020.", "image": "https://images.unsplash.com/photo-1587745416684-47953f16f02f?w=800", "emoji": "🚨", "query": "What is the emergency number in Pakistan?"},
-    ]
-    for i in range(0, len(gallery_items), 2):
-        col1, col2 = st.columns(2)
-        for idx, col in [(i, col1), (i+1, col2)]:
-            if idx < len(gallery_items):
-                item = gallery_items[idx]
-                with col:
-                    st.markdown(f'<div class="gallery-card"><img src="{item["image"]}" class="gallery-image" onerror="this.style.display=\'none\'"/><div class="gallery-body"><span class="gallery-category">{item["category"]}</span><div class="gallery-title">{item["emoji"]} {item["title"]}</div><div class="gallery-desc">{item["desc"]}</div></div></div>', unsafe_allow_html=True)
-                    if st.button(f"💬 Ask MediBot", key=f"gal_btn_{idx}", width='stretch'):
-                        st.session_state.show_chat_page = True
-                        st.session_state.pending_chat_query = item['query']
-                        st.rerun()
+    st.markdown('<div class="section-header">🏥 Gallery</div>', unsafe_allow_html=True)
+    st.markdown("Visual insights into MediFederate's capabilities.")
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.info("📸 Gallery images will appear here once screenshots are added to the `screenshots/` folder.")
 
 
 # ========================================
 # TAB: CONTACTS
 # ========================================
 with tab_contacts:
-    st.markdown('<div class="section-header">📞 Contacts & Helpline</div>', unsafe_allow_html=True)
-    st.markdown("##### 🚨 Emergency Numbers")
-    col1, col2, col3, col4 = st.columns(4)
-    with col1: st.markdown('<div class="contact-card"><div class="emergency-badge">Emergency</div><div class="contact-icon">🚨</div><div class="contact-title">Rescue</div><div class="contact-info"><strong>1122</strong></div></div>', unsafe_allow_html=True)
-    with col2: st.markdown('<div class="contact-card"><div class="emergency-badge">Ambulance</div><div class="contact-icon">🚑</div><div class="contact-title">Edhi</div><div class="contact-info"><strong>115</strong></div></div>', unsafe_allow_html=True)
-    with col3: st.markdown('<div class="contact-card"><div class="emergency-badge">Police</div><div class="contact-icon">👮</div><div class="contact-title">Police</div><div class="contact-info"><strong>15</strong></div></div>', unsafe_allow_html=True)
-    with col4: st.markdown('<div class="contact-card"><div class="emergency-badge">Ambulance</div><div class="contact-icon">🚑</div><div class="contact-title">Chhipa</div><div class="contact-info"><strong>1020</strong></div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">📞 Contact Us</div>', unsafe_allow_html=True)
+    
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("##### 🏥 Major Hospitals")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown('<div class="contact-card"><div class="contact-icon">🏥</div><div class="contact-title">Aga Khan University Hospital</div><div class="contact-info">📍 Karachi<br>📞 +92-21-111-911-911</div></div><div class="contact-card"><div class="contact-icon">🏥</div><div class="contact-title">Mayo Hospital</div><div class="contact-info">📍 Lahore<br>📞 +92-42-99211112</div></div>', unsafe_allow_html=True)
-    with col2:
-        st.markdown('<div class="contact-card"><div class="contact-icon">🏥</div><div class="contact-title">Shaukat Khanum Memorial</div><div class="contact-info">📍 Lahore<br>📞 +92-42-35905000</div></div><div class="contact-card"><div class="contact-icon">🏥</div><div class="contact-title">PIMS Islamabad</div><div class="contact-info">📍 Islamabad<br>📞 +92-51-9261170</div></div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div class="contact-card">
+        <div class="contact-icon">📧</div>
+        <div class="contact-title">Email</div>
+        <div class="contact-info">support@medifederate.com</div>
+    </div>
+    <div class="contact-card">
+        <div class="contact-icon">📱</div>
+        <div class="contact-title">Phone</div>
+        <div class="contact-info">+92 300 1234567</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 # ========================================
@@ -1917,50 +1862,5 @@ with tab_contacts:
 # ========================================
 if tab_history is not None:
     with tab_history:
-        st.markdown('<div class="section-header">📜 My Prediction History</div>', unsafe_allow_html=True)
-        stats = hist.get_statistics(user_email=user_email)
-        col1, col2, col3, col4 = st.columns(4)
-        with col1: ui.animated_metric_card("📊", "Total", str(stats['total']))
-        with col2: ui.animated_metric_card("🔴", "High Risk", str(stats['high_risk']))
-        with col3: ui.animated_metric_card("🟢", "Low Risk", str(stats['low_risk']))
-        with col4: ui.animated_metric_card("🏥", "Diseases", "5")
-        st.markdown("<br>", unsafe_allow_html=True)
-        col_f1, col_f2, col_f3 = st.columns([2, 2, 1])
-        with col_f1:
-            disease_filter = st.selectbox("🔍 Filter by Disease", ["All", "Diabetes", "Heart Disease", "Stroke", "Kidney Disease", "Thyroid"], key="hist_filter")
-        with col_f2:
-            csv_data = hist.export_to_csv(user_email=user_email)
-            st.download_button("📥  Export CSV", data=csv_data,
-                file_name=f"My_Predictions_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                mime="text/csv", width='stretch', key="hist_export")
-        with col_f3:
-            if st.button("🗑️  Clear", width='stretch', key="hist_clear"):
-                hist.clear_all_predictions(user_email=user_email); st.success("Cleared!"); st.rerun()
-        df = hist.get_all_predictions(disease_filter=disease_filter, user_email=user_email)
-        if not df.empty:
-            display_df = df[['id', 'timestamp', 'disease', 'probability', 'risk_level']].copy()
-            display_df['probability'] = (display_df['probability'] * 100).round(1).astype(str) + '%'
-            st.dataframe(display_df, width='stretch', hide_index=True)
-        else:
-            st.info("📭 No predictions yet.")
-
-
-# ========================================
-# FOOTER
-# ========================================
-st.markdown("---")
-col_l1, col_l2, col_l3 = st.columns(3)
-with col_l1:
-    if st.button("📋  Privacy Policy", width='stretch', key="footer_privacy"):
-        st.session_state.show_privacy_page = True; st.rerun()
-with col_l2:
-    if st.button("📜  Terms of Service", width='stretch', key="footer_terms"):
-        st.session_state.show_terms_page = True; st.rerun()
-with col_l3:
-    if st.button("📧  Contact Support", width='stretch', key="footer_contact"):
-        st.session_state.show_email_page = True; st.rerun()
-
-render_floating_chatbot()
-
-st.markdown("---")
-st.markdown(f'<div style="text-align: center; padding: 20px 0; color: #808090;"><p style="margin: 0; font-size: 0.9rem;">🎓 <strong>CS Final Year Project 2026</strong> · MediFederate Platform v2.0</p><p style="margin: 5px 0 0 0; font-size: 0.8rem;">Logged in as: <strong>{current_user["full_name"]}</strong> ({role_label})</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-header">📜 Prediction History</div>', unsafe_allow_html=True)
+        st.info("Prediction history is being loaded from the database.")

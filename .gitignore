@@ -1,10 +1,14 @@
 # Virtual Environment
 venv/
+venv311/
+venv_dp/
+.env/
 __pycache__/
 *.pyc
 
 # Large Data Files
 data/diabetic_data.csv
+federated_model.h5
 
 # Local Databases (SQLite)
 *.db

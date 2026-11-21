@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.core.config import settings
 from backend.core.database import init_db
-from backend.routes import auth
+from backend.routes import auth, appointment, prediction
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -31,6 +31,8 @@ def on_startup():
 # ROUTERS
 # ========================================
 app.include_router(auth.router)
+app.include_router(appointment.router)
+app.include_router(prediction.router) # Naya Prediction Route yahan add kiya hai
 
 
 # ========================================
