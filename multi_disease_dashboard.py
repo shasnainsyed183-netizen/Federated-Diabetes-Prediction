@@ -83,82 +83,80 @@ if st.session_state.show_chat_page:
     st.stop()
 
 
-# @st.cache_resource(show_spinner=False)
+# ========================================
+# LAZY MODEL LOADING (FIXED FOR ALL DISEASES)
+# ========================================
+@st.cache_resource(show_spinner=False)
 def load_diabetes_model():
     import tensorflow as tf
     import pandas as pd
     from sklearn.preprocessing import StandardScaler
     import os
-    
     try:
-        # 1. Check karein ke model file mojood hai
         if not os.path.exists('federated_model.h5'):
             raise FileNotFoundError("Model file 'federated_model.h5' nahi mili.")
-            
-        # 2. Naya DP Model load karein (compile=False zaroori hai)
         model = tf.keras.models.load_model('federated_model.h5', compile=False)
-        
-        # 3. Data check karein
         if not os.path.exists('data/optimized_data.csv'):
             raise FileNotFoundError("Dataset 'optimized_data.csv' nahi mili.")
-            
-        # 4. Optimized data se features aur scaler banayein
         df = pd.read_csv('data/optimized_data.csv')
         features = df.drop('readmitted', axis=1).columns.tolist()
-        
         scaler = StandardScaler()
         scaler.fit(df.drop('readmitted', axis=1))
-        
         return {'model': model, 'scaler': scaler, 'features': features}
-        
     except Exception as e:
-        # Ab error direct Streamlit ke UI par nazar aayega
-        st.error(f"Model Load Error: {str(e)}")
-        import traceback
-        st.error(traceback.format_exc())
+        st.error(f"Diabetes Model Load Error: {str(e)}")
         return None
+
 
 @st.cache_resource(show_spinner=False)
 def load_heart_model():
     import tensorflow as tf
+    import pickle
     try:
-        return {'model': tf.keras.models.load_model('heart_dp_model.keras'),
+        return {'model': tf.keras.models.load_model('heart_dp_model.keras', compile=False),
                 'scaler': pickle.load(open('scaler_heart.pkl', 'rb')),
                 'features': pickle.load(open('feature_names_heart.pkl', 'rb'))}
-    except Exception:
+    except Exception as e:
+        print(f"Heart Model Error: {e}")
         return None
 
 
 @st.cache_resource(show_spinner=False)
 def load_stroke_model():
     import tensorflow as tf
+    import pickle
     try:
-        return {'model': tf.keras.models.load_model('stroke_dp_model.keras'),
+        return {'model': tf.keras.models.load_model('stroke_dp_model.keras', compile=False),
                 'scaler': pickle.load(open('scaler_stroke.pkl', 'rb')),
                 'features': pickle.load(open('feature_names_stroke.pkl', 'rb'))}
-    except Exception:
+    except Exception as e:
+        print(f"Stroke Model Error: {e}")
         return None
 
 
 @st.cache_resource(show_spinner=False)
 def load_kidney_model():
     import tensorflow as tf
+    import pickle
     try:
-        return {'model': tf.keras.models.load_model('kidney_dp_model.keras'),
+        return {'model': tf.keras.models.load_model('kidney_dp_model.keras', compile=False),
                 'scaler': pickle.load(open('scaler_kidney.pkl', 'rb')),
                 'features': pickle.load(open('feature_names_kidney.pkl', 'rb'))}
-    except Exception:
+    except Exception as e:
+        print(f"Kidney Model Error: {e}")
         return None
 
 
 @st.cache_resource(show_spinner=False)
 def load_thyroid_model():
     import tensorflow as tf
+    import pickle
     try:
-        return {'model': tf.keras.models.load_model('thyroid_dp_model.keras'),
+        return {'model': tf.keras.models.load_model('thyroid_dp_model.keras', compile=False),
                 'scaler': pickle.load(open('scaler_thyroid.pkl', 'rb')),
                 'features': pickle.load(open('thyroid_features.pkl', 'rb'))}
-    except Exception:
+    except Exception as e:
+        print(f"Thyroid Model Error: {e}")
         return None
 
 
