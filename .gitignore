@@ -8,7 +8,6 @@ __pycache__/
 
 # Large Data Files
 data/diabetic_data.csv
-federated_model.h5
 
 # Local Databases (SQLite)
 *.db
