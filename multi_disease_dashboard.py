@@ -83,19 +83,26 @@ if st.session_state.show_chat_page:
     st.stop()
 
 
-# ========================================
-# LAZY MODEL LOADING
-# ========================================
-@st.cache_resource(show_spinner=False)
+# @st.cache_resource(show_spinner=False)
 def load_diabetes_model():
     import tensorflow as tf
     import pandas as pd
     from sklearn.preprocessing import StandardScaler
+    import os
+    
     try:
-        # Naya DP Model load karein
+        # 1. Check karein ke model file mojood hai
+        if not os.path.exists('federated_model.h5'):
+            raise FileNotFoundError("Model file 'federated_model.h5' nahi mili.")
+            
+        # 2. Naya DP Model load karein (compile=False zaroori hai)
         model = tf.keras.models.load_model('federated_model.h5', compile=False)
         
-        # Optimized data se features aur scaler banayein
+        # 3. Data check karein
+        if not os.path.exists('data/optimized_data.csv'):
+            raise FileNotFoundError("Dataset 'optimized_data.csv' nahi mili.")
+            
+        # 4. Optimized data se features aur scaler banayein
         df = pd.read_csv('data/optimized_data.csv')
         features = df.drop('readmitted', axis=1).columns.tolist()
         
@@ -103,10 +110,13 @@ def load_diabetes_model():
         scaler.fit(df.drop('readmitted', axis=1))
         
         return {'model': model, 'scaler': scaler, 'features': features}
+        
     except Exception as e:
-        print(f"Diabetes Model Load Error: {e}")
+        # Ab error direct Streamlit ke UI par nazar aayega
+        st.error(f"Model Load Error: {str(e)}")
+        import traceback
+        st.error(traceback.format_exc())
         return None
-
 
 @st.cache_resource(show_spinner=False)
 def load_heart_model():
