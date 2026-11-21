@@ -125,12 +125,30 @@ def load_heart_model():
 def load_stroke_model():
     import tensorflow as tf
     import pickle
+    import os
+    
     try:
-        return {'model': tf.keras.models.load_model('stroke_dp_model.keras', compile=False),
-                'scaler': pickle.load(open('scaler_stroke.pkl', 'rb')),
-                'features': pickle.load(open('feature_names_stroke.pkl', 'rb'))}
+        # 1. Check if files exist
+        if not os.path.exists('stroke_dp_model.keras'):
+            st.error("❌ Error: 'stroke_dp_model.keras' file nahi mili. GitHub par upload karein.")
+            return None
+            
+        if not os.path.exists('scaler_stroke.pkl') or not os.path.exists('feature_names_stroke.pkl'):
+            st.error("❌ Error: Scaler ya Features ki .pkl file nahi mili.")
+            return None
+            
+        # 2. Load Model
+        model = tf.keras.models.load_model('stroke_dp_model.keras', compile=False)
+        
+        # 3. Load Scaler & Features
+        scaler = pickle.load(open('scaler_stroke.pkl', 'rb'))
+        features = pickle.load(open('feature_names_stroke.pkl', 'rb'))
+        
+        return {'model': model, 'scaler': scaler, 'features': features}
+        
     except Exception as e:
-        print(f"Stroke Model Error: {e}")
+        # Ab error screen par dikhega
+        st.error(f"Stroke Model Load Error: {str(e)}")
         return None
 
 
