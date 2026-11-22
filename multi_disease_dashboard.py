@@ -95,7 +95,7 @@ def load_diabetes_model():
     try:
         if not os.path.exists('federated_model.h5'):
             raise FileNotFoundError("Model file 'federated_model.h5' nahi mili.")
-        model = tf.keras.models.load_model('federated_model.h5', compile=False)
+        model = tf.h5.models.load_model('federated_model.h5', compile=False)
         if not os.path.exists('data/optimized_data.csv'):
             raise FileNotFoundError("Dataset 'optimized_data.csv' nahi mili.")
         df = pd.read_csv('data/optimized_data.csv')
@@ -113,7 +113,7 @@ def load_heart_model():
     import tensorflow as tf
     import pickle
     try:
-        return {'model': tf.keras.models.load_model('heart_dp_model.keras', compile=False),
+        return {'model': tf.h5.models.load_model('heart_dp_model.h5', compile=False),
                 'scaler': pickle.load(open('scaler_heart.pkl', 'rb')),
                 'features': pickle.load(open('feature_names_heart.pkl', 'rb'))}
     except Exception as e:
@@ -129,8 +129,8 @@ def load_stroke_model():
     
     try:
         # 1. Check if files exist
-        if not os.path.exists('stroke_dp_model.keras'):
-            st.error("❌ Error: 'stroke_dp_model.keras' file nahi mili. GitHub par upload karein.")
+        if not os.path.exists('stroke_dp_model.h5'):
+            st.error("❌ Error: 'stroke_dp_model.h5' file nahi mili. GitHub par upload karein.")
             return None
             
         if not os.path.exists('scaler_stroke.pkl') or not os.path.exists('feature_names_stroke.pkl'):
@@ -138,7 +138,7 @@ def load_stroke_model():
             return None
             
         # 2. Load Model
-        model = tf.keras.models.load_model('stroke_dp_model.keras', compile=False)
+        model = tf.h5.models.load_model('stroke_dp_model.h5', compile=False)
         
         # 3. Load Scaler & Features
         scaler = pickle.load(open('scaler_stroke.pkl', 'rb'))
@@ -157,7 +157,7 @@ def load_kidney_model():
     import tensorflow as tf
     import pickle
     try:
-        return {'model': tf.keras.models.load_model('kidney_dp_model.keras', compile=False),
+        return {'model': tf.h5.models.load_model('kidney_dp_model.h5', compile=False),
                 'scaler': pickle.load(open('scaler_kidney.pkl', 'rb')),
                 'features': pickle.load(open('feature_names_kidney.pkl', 'rb'))}
     except Exception as e:
@@ -170,7 +170,7 @@ def load_thyroid_model():
     import tensorflow as tf
     import pickle
     try:
-        return {'model': tf.keras.models.load_model('thyroid_dp_model.keras', compile=False),
+        return {'model': tf.h5.models.load_model('thyroid_dp_model.h5', compile=False),
                 'scaler': pickle.load(open('scaler_thyroid.pkl', 'rb')),
                 'features': pickle.load(open('thyroid_features.pkl', 'rb'))}
     except Exception as e:
